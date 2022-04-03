@@ -158,6 +158,7 @@ void tranform_cb(const lv_area_t * dest_area, const void * src_buf, lv_coord_t s
     lv_coord_t dest_w = lv_area_get_width(dest_area);
     lv_coord_t dest_h = lv_area_get_height(dest_area);
     lv_coord_t y;
+    bool has_alpha = lv_img_cf_has_alpha(cf);
     for(y = 0; y < dest_h; y++) {
         int32_t xs1_ups, ys1_ups, xs2_ups, ys2_ups;
         transform_point(&trans_dsc, dest_area->x1, dest_area->y1 + y, &xs1_ups, &ys1_ups);
@@ -165,30 +166,127 @@ void tranform_cb(const lv_area_t * dest_area, const void * src_buf, lv_coord_t s
 
         int32_t xs_step = (xs2_ups - xs1_ups) / dest_w;
         int32_t ys_step = (ys2_ups - ys1_ups) / dest_w;
-
         lv_coord_t x;
         int32_t xs_ups = xs1_ups + xs_step / 2;     /*Init. + go the center of the pixel*/
         int32_t ys_ups = ys1_ups + ys_step / 2;
+        //      int32_t ys_int_out = (ys_ups + ys_step * dest_w) >> 8;
+        //      if(ys_int_out >= src_h) return;
+
+
+        /*br*/
+        int32_t x_end_x = dest_w;
+        int32_t x_start_x = 0;
+        if(xs_step) {
+            x_end_x = ((src_w << 8) - xs_ups) / xs_step;
+            //      x_end = dest_w - x_end;
+            if(x_end_x > dest_w) x_end_x = dest_w;
+            if(x_end_x < 0) x_end_x = 0;
+
+            x_start_x = - ((xs_ups + xs_step - 1) / xs_step);
+            if(x_start_x < 0) x_start_x = 0;
+            if(x_start_x > dest_w) x_start_x = dest_w;
+        }
+        /*bl*/
+        int32_t x_end_y = dest_w;
+        int32_t x_start_y = 0;
+        if(ys_step) {
+            x_end_y = ((src_h << 8) - ys_ups) / ys_step;
+            //      x_end = dest_w - x_end;
+            if(x_end_y < 0) x_end_y = 0;
+            if(x_end_y > dest_w) x_end_y = dest_w;
+
+            /*tr*/
+            x_start_y = - ((ys_ups + ys_step - 1) / ys_step);
+            //      x_end = dest_w - x_end;
+            if(x_start_y < 0) x_start_y = 0;
+            if(x_start_y > dest_w) x_start_y = dest_w;
+        }
+
+        int32_t x_start = 0;
+        int32_t x_end = dest_w;
+
+        //1 +-, 2--, 3++
+        if(xs_step >= 0) {
+            x_start = x_start_x;
+            x_end = x_end_x;
+        }
+        else {
+            x_start = x_end_x;
+            x_end = x_start_x;
+        }
+
+        if(ys_step >= 0) {
+            x_start = LV_MAX(x_start, x_start_y);
+            x_end = LV_MIN(x_end, x_end_y);
+        }
+        else {
+            x_start = LV_MAX(x_start, x_end_y);
+            x_end = LV_MIN(x_end, x_start_y);
+        }
+
+
+        //2 --
+        //          x_start = x_end_y;
+        //          x_end = x_start_x;
+
+
+
+        //      x_start = LV_MAX(x_start_x, x_end_y);
+        //      x_end = LV_MIN(x_end_x, x_start_y);
+
+#if 0
+        lv_memset(abuf, 0x00, x_start);
+        lv_memset(&abuf[x_end], 0x00, dest_w - x_end);
+#else
+        lv_memset(abuf, 0xff, x_start);
+        lv_memset(cbuf, 0xf, x_start * 2);
+
+        lv_memset(&abuf[x_end], 0xff, dest_w - x_end);
+        lv_memset(&cbuf[x_end], 0xa, (dest_w - x_end) * 2);
+#endif
+        xs_ups += xs_step * x_start;
+        ys_ups += ys_step * x_start;
+
+
+        //      start + A * step = src_w_ups
+        //      A = (src_w_ups - start) / step
+
+        //      if(x_start) {
+        //          lv_memset(&abuf[x_end], 0x00, dest_w - x_end);
+        //          xs_ups += xs_step * x_start;
+        //          ys_ups += ys_step * x_start;
+        //      }
+        //          printf("%d\n", x_start);
         if(trans_dsc.cfg.antialias == 0) {
-            for(x = 0; x < dest_w; x++) {
+
+
+            for(x = x_start; x < x_end; x++) {
                 int32_t xs_int = xs_ups >> 8;
                 int32_t ys_int = ys_ups >> 8;
                 if(xs_int < 0 || xs_int >= src_w || ys_int < 0 || ys_int >= src_h) {
                     abuf[x] = 0;
+                    //                    printf("s\n");
                 }
                 else {
+                    //                    printf("o\n");
                     const uint8_t * src_tmp;
                     src_tmp = trans_dsc.cfg.src;
                     src_tmp += (ys_int * src_stride * LV_IMG_PX_SIZE_ALPHA_BYTE) + xs_int * LV_IMG_PX_SIZE_ALPHA_BYTE;
-                    abuf[x] = src_tmp[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
+
+#if LV_COLOR_DEPTH == 16
                     cbuf[x].full = src_tmp[0] + (src_tmp[1] << 8);
+#elif LV_COLOR_DEPTH == 32
+                    cbuf[x].full = *((uint32_t *)src_tmp);
+#endif
+                    //                    if(has_alpha)
+                    abuf[x] = src_tmp[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
                 }
                 xs_ups += xs_step;
                 ys_ups += ys_step;
             }
         }
         else {
-            for(x = 0; x < dest_w; x++) {
+            for(x = x_start; x < x_end; x++) {
                 int32_t xs_int = xs_ups >> 8;
                 int32_t ys_int = ys_ups >> 8;
 
