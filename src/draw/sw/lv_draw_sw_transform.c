@@ -193,14 +193,7 @@ static void argb_and_rgb_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t sr
                             int32_t x_end, lv_color_t * cbuf, uint8_t * abuf, bool has_alpha)
 {
 
-    int32_t px_size;
-    if(!has_alpha) {
-        lv_memset_ff(abuf, x_end);
-        px_size = sizeof(lv_color_t);
-    }
-    else {
-        px_size = LV_IMG_PX_SIZE_ALPHA_BYTE;
-    }
+    const int32_t px_size = has_alpha ? LV_IMG_PX_SIZE_ALPHA_BYTE : sizeof(lv_color_t);
 
     lv_coord_t x;
     for(x = 0; x < x_end; x++) {
@@ -246,56 +239,51 @@ static void argb_and_rgb_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t sr
            ys_int + y_next >= 0 &&
            ys_int + y_next <= src_h - 1) {
 
-            const uint8_t * px_base = NULL;
-            const uint8_t * px_hor = NULL;
-            const uint8_t * px_ver = NULL;
-            px_base = src_tmp;
-            px_hor = src_tmp + x_next * px_size;
-            px_ver = src_tmp + y_next * src_stride * px_size;
+            const uint8_t * px_base = src_tmp;
+            const uint8_t * px_hor = src_tmp + x_next * px_size;
+            const uint8_t * px_ver = src_tmp + y_next * src_stride * px_size;
+			lv_color_t c_base;
+			lv_color_t c_ver;
+			lv_color_t c_hor;
 
-            if(has_alpha) {
-                lv_opa_t a_base = px_base[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
-                lv_opa_t a_ver = px_ver[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
-                lv_opa_t a_hor = px_hor[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
+			if(has_alpha) {
+				lv_opa_t a_base = px_base[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
+				lv_opa_t a_ver = px_ver[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
+				lv_opa_t a_hor = px_hor[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
 
-                if(a_ver != a_base) a_ver = ((a_ver * ys_fract) + (a_base * (0x100 - ys_fract))) >> 8;
-                if(a_hor != a_base) a_hor = ((a_hor * xs_fract) + (a_base * (0x100 - xs_fract))) >> 8;
-                abuf[x] = (a_ver + a_hor) >> 1;
-            }
+				if(a_ver != a_base) a_ver = ((a_ver * ys_fract) + (a_base * (0x100 - ys_fract))) >> 8;
+				if(a_hor != a_base) a_hor = ((a_hor * xs_fract) + (a_base * (0x100 - xs_fract))) >> 8;
+				abuf[x] = (a_ver + a_hor) >> 1;
 
-            if(abuf[x]) {
-                lv_color_t c_base;
+				if(abuf[x]) {
 #if LV_COLOR_DEPTH == 8
-                c_base.full = px_base[0];
+					c_base.full = px_base[0];
+					c_ver.full = px_ver[0];
+					c_hor.full = px_hor[0];
 #elif LV_COLOR_DEPTH == 16
-                c_base.full = px_base[0] + (px_base[1] << 8);
+					c_base.full = px_base[0] + (px_base[1] << 8);
+					c_ver.full = px_ver[0] + (px_ver[1] << 8);
+					c_hor.full = px_hor[0] + (px_hor[1] << 8);
 #elif LV_COLOR_DEPTH == 32
-                c_base.full = *((uint32_t *)px_base);
+					c_base.full = *((uint32_t *)px_base);
+					c_ver.full = *((uint32_t *)px_ver);
+					c_hor.full = *((uint32_t *)px_hor);
 #endif
+				}
+			}
+			/*No alpha channel -> RGB*/
+			else {
+				c_base = *((const lv_color_t*) px_base);
+				c_hor = *((const lv_color_t*) px_hor);
+				c_ver = *((const lv_color_t*) px_ver);
+				abuf[x] = 0xff;
+			}
 
-                lv_color_t c_ver;
-#if LV_COLOR_DEPTH == 8
-                c_ver.full = px_ver[0];
-#elif LV_COLOR_DEPTH == 16
-                c_ver.full = px_ver[0] + (px_ver[1] << 8);
-#elif LV_COLOR_DEPTH == 32
-                c_ver.full = *((uint32_t *)px_ver);
-#endif
-
-                lv_color_t c_hor;
-#if LV_COLOR_DEPTH == 8
-                c_hor.full = px_hor[0];
-#elif LV_COLOR_DEPTH == 16
-                c_hor.full = px_hor[0] + (px_hor[1] << 8);
-#elif LV_COLOR_DEPTH == 32
-                c_hor.full = *((uint32_t *)px_hor);
-#endif
-
-                c_ver = lv_color_mix(c_ver, c_base, ys_fract);
-                c_hor = lv_color_mix(c_hor, c_base, xs_fract);
-                cbuf[x] = lv_color_mix(c_hor, c_ver, LV_OPA_50);
-            }
+			c_ver = lv_color_mix(c_ver, c_base, ys_fract);
+			c_hor = lv_color_mix(c_hor, c_base, xs_fract);
+			cbuf[x] = lv_color_mix(c_hor, c_ver, LV_OPA_50);
         }
+        /*Partially out of the image*/
         else {
 
 #if LV_COLOR_DEPTH == 8
