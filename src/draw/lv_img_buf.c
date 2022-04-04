@@ -770,3 +770,28 @@ bool _lv_img_buf_transform_anti_alias(lv_img_transform_dsc_t * dsc)
 /**********************
  *   STATIC FUNCTIONS
  **********************/
+
+static void transform_point(const lv_img_transform_dsc_t * dsc, int32_t x, int32_t y, int32_t * xs, int32_t * ys)
+{
+    /*Get the target point relative coordinates to the pivot*/
+    int32_t xt = x - dsc->cfg.pivot_x;
+    int32_t yt = y - dsc->cfg.pivot_y;
+
+    if(dsc->cfg.zoom == LV_IMG_ZOOM_NONE) {
+        /*Get the source pixel from the upscaled image*/
+        *xs = ((dsc->tmp.cosma * xt - dsc->tmp.sinma * yt) >> (_LV_TRANSFORM_TRIGO_SHIFT - 8)) + dsc->tmp.pivot_x_256;
+        *ys = ((dsc->tmp.sinma * xt + dsc->tmp.cosma * yt) >> (_LV_TRANSFORM_TRIGO_SHIFT - 8)) + dsc->tmp.pivot_y_256;
+    }
+    else if(dsc->cfg.angle == 0) {
+        xt = (int32_t)((int32_t)xt * dsc->tmp.zoom_inv) >> _LV_ZOOM_INV_UPSCALE;
+        yt = (int32_t)((int32_t)yt * dsc->tmp.zoom_inv) >> _LV_ZOOM_INV_UPSCALE;
+        *xs = xt + dsc->tmp.pivot_x_256;
+        *ys = yt + dsc->tmp.pivot_y_256;
+    }
+    else {
+        xt = (int32_t)((int32_t)xt * dsc->tmp.zoom_inv) >> _LV_ZOOM_INV_UPSCALE;
+        yt = (int32_t)((int32_t)yt * dsc->tmp.zoom_inv) >> _LV_ZOOM_INV_UPSCALE;
+        *xs = ((dsc->tmp.cosma * xt - dsc->tmp.sinma * yt) >> (_LV_TRANSFORM_TRIGO_SHIFT)) + dsc->tmp.pivot_x_256;
+        *ys = ((dsc->tmp.sinma * xt + dsc->tmp.cosma * yt) >> (_LV_TRANSFORM_TRIGO_SHIFT)) + dsc->tmp.pivot_y_256;
+    }
+}
