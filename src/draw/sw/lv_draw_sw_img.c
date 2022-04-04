@@ -26,6 +26,8 @@
 /**********************
  *  STATIC PROTOTYPES
  **********************/
+static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coord_t src_w, lv_coord_t src_h,
+                       lv_coord_t src_stride, const lv_draw_img_dsc_t * draw_dsc, lv_img_cf_t cf, lv_color_t * cbuf, lv_opa_t * abuf);
 
 /**********************
  *  STATIC VARIABLES
@@ -39,79 +41,6 @@
  *   GLOBAL FUNCTIONS
  **********************/
 
-
-/* Separate the image channels to RGB and Alpha to match LV_COLOR_DEPTH settings*/
-void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coord_t src_w, lv_coord_t src_h,
-                lv_coord_t src_stride, const lv_draw_img_dsc_t * draw_dsc, lv_img_cf_t cf, lv_color_t * cbuf, lv_opa_t * abuf)
-{
-
-    const uint8_t * src_tmp8 = (const uint8_t *)src_buf;
-    lv_coord_t y;
-    lv_coord_t x;
-
-    if(cf == LV_IMG_CF_RGB || cf == LV_IMG_CF_RGB_CHK) {
-        uint32_t px_cnt = lv_area_get_size(dest_area);
-        lv_memset_ff(abuf, px_cnt);
-
-        src_tmp8 += (src_stride * dest_area->y1 * sizeof(lv_color_t)) + dest_area->x1 * sizeof(lv_color_t);
-        uint32_t dest_w = lv_area_get_width(dest_area);
-        uint32_t dest_w_byte = dest_w * sizeof(lv_color_t);
-
-        lv_coord_t src_stride_byte = src_stride * sizeof(lv_color_t);
-        lv_color_t * cbuf_tmp = cbuf;
-        for(y = dest_area->y1; y <= dest_area->y2; y++) {
-            lv_memcpy(cbuf_tmp, src_tmp8, dest_w_byte);
-            src_tmp8 += src_stride_byte;
-            cbuf_tmp += dest_w;
-        }
-
-        /*Make "holes" for with Chroma keying*/
-        if(cf == LV_IMG_CF_RGB_CHK) {
-            uint32_t i;
-            lv_color_t chk = LV_COLOR_CHROMA_KEY;
-#if LV_COLOR_DEPTH == 8
-            uint8_t * cbuf_uint = (uint8_t *)cbuf;
-            uint8_t chk_v = chk.full;
-#elif LV_COLOR_DEPTH == 16
-            uint16_t * cbuf_uint = (uint16_t *)cbuf;
-            uint16_t chk_v = chk.full;
-#elif LV_COLOR_DEPTH == 32
-            uint32_t * cbuf_uint = (uint32_t *)cbuf;
-            uint32_t chk_v = chk.full;
-#endif
-            for(i = 0; i < px_cnt; i++) {
-                if(chk_v == cbuf_uint[i]) abuf[i] = 0x00;
-            }
-        }
-    }
-    else if(cf == LV_IMG_CF_RGBA) {
-        src_tmp8 += (src_stride * dest_area->y1 * LV_IMG_PX_SIZE_ALPHA_BYTE) + dest_area->x1 * LV_IMG_PX_SIZE_ALPHA_BYTE;
-
-        lv_coord_t src_new_line_step_px = (src_stride - lv_area_get_width(dest_area));
-        lv_coord_t src_new_line_step_byte = src_new_line_step_px * LV_IMG_PX_SIZE_ALPHA_BYTE;
-
-        lv_coord_t dest_h = lv_area_get_height(dest_area);
-        lv_coord_t dest_w = lv_area_get_width(dest_area);
-        for(y = 0; y < dest_h; y++) {
-            for(x = 0; x < dest_w; x++) {
-                abuf[x] = src_tmp8[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
-#if LV_COLOR_DEPTH == 8
-                cbuf[x] = *src_tmp8;
-#elif LV_COLOR_DEPTH == 16
-                cbuf[x].full = *src_tmp8 + ((*(src_tmp8 + 1)) << 8);
-#elif LV_COLOR_DEPTH == 32
-                cbuf[x] = *((lv_color_t *) src_tmp8);
-                cbuf[x].ch.alpha = 0xff;
-#endif
-                src_tmp8 += LV_IMG_PX_SIZE_ALPHA_BYTE;
-
-            }
-            cbuf += dest_w;
-            abuf += dest_w;
-            src_tmp8 += src_new_line_step_byte;
-        }
-    }
-}
 
 LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t * draw_dsc,
                                                   const lv_area_t * coords, const uint8_t * src_buf, lv_img_cf_t cf)
@@ -241,3 +170,76 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_c
 /**********************
  *   STATIC FUNCTIONS
  **********************/
+
+/* Separate the image channels to RGB and Alpha to match LV_COLOR_DEPTH settings*/
+static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coord_t src_w, lv_coord_t src_h,
+                       lv_coord_t src_stride, const lv_draw_img_dsc_t * draw_dsc, lv_img_cf_t cf, lv_color_t * cbuf, lv_opa_t * abuf)
+{
+
+    const uint8_t * src_tmp8 = (const uint8_t *)src_buf;
+    lv_coord_t y;
+    lv_coord_t x;
+
+    if(cf == LV_IMG_CF_RGB || cf == LV_IMG_CF_RGB_CHK) {
+        uint32_t px_cnt = lv_area_get_size(dest_area);
+        lv_memset_ff(abuf, px_cnt);
+
+        src_tmp8 += (src_stride * dest_area->y1 * sizeof(lv_color_t)) + dest_area->x1 * sizeof(lv_color_t);
+        uint32_t dest_w = lv_area_get_width(dest_area);
+        uint32_t dest_w_byte = dest_w * sizeof(lv_color_t);
+
+        lv_coord_t src_stride_byte = src_stride * sizeof(lv_color_t);
+        lv_color_t * cbuf_tmp = cbuf;
+        for(y = dest_area->y1; y <= dest_area->y2; y++) {
+            lv_memcpy(cbuf_tmp, src_tmp8, dest_w_byte);
+            src_tmp8 += src_stride_byte;
+            cbuf_tmp += dest_w;
+        }
+
+        /*Make "holes" for with Chroma keying*/
+        if(cf == LV_IMG_CF_RGB_CHK) {
+            uint32_t i;
+            lv_color_t chk = LV_COLOR_CHROMA_KEY;
+#if LV_COLOR_DEPTH == 8
+            uint8_t * cbuf_uint = (uint8_t *)cbuf;
+            uint8_t chk_v = chk.full;
+#elif LV_COLOR_DEPTH == 16
+            uint16_t * cbuf_uint = (uint16_t *)cbuf;
+            uint16_t chk_v = chk.full;
+#elif LV_COLOR_DEPTH == 32
+            uint32_t * cbuf_uint = (uint32_t *)cbuf;
+            uint32_t chk_v = chk.full;
+#endif
+            for(i = 0; i < px_cnt; i++) {
+                if(chk_v == cbuf_uint[i]) abuf[i] = 0x00;
+            }
+        }
+    }
+    else if(cf == LV_IMG_CF_RGBA) {
+        src_tmp8 += (src_stride * dest_area->y1 * LV_IMG_PX_SIZE_ALPHA_BYTE) + dest_area->x1 * LV_IMG_PX_SIZE_ALPHA_BYTE;
+
+        lv_coord_t src_new_line_step_px = (src_stride - lv_area_get_width(dest_area));
+        lv_coord_t src_new_line_step_byte = src_new_line_step_px * LV_IMG_PX_SIZE_ALPHA_BYTE;
+
+        lv_coord_t dest_h = lv_area_get_height(dest_area);
+        lv_coord_t dest_w = lv_area_get_width(dest_area);
+        for(y = 0; y < dest_h; y++) {
+            for(x = 0; x < dest_w; x++) {
+                abuf[x] = src_tmp8[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
+#if LV_COLOR_DEPTH == 8
+                cbuf[x] = *src_tmp8;
+#elif LV_COLOR_DEPTH == 16
+                cbuf[x].full = *src_tmp8 + ((*(src_tmp8 + 1)) << 8);
+#elif LV_COLOR_DEPTH == 32
+                cbuf[x] = *((lv_color_t *) src_tmp8);
+                cbuf[x].ch.alpha = 0xff;
+#endif
+                src_tmp8 += LV_IMG_PX_SIZE_ALPHA_BYTE;
+
+            }
+            cbuf += dest_w;
+            abuf += dest_w;
+            src_tmp8 += src_new_line_step_byte;
+        }
+    }
+}
