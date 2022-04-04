@@ -23,21 +23,21 @@ void lv_example_img_3(void)
     lv_obj_t * img = lv_img_create(lv_scr_act());
     lv_img_set_src(img, &img_cogwheel_argb);
     lv_obj_align(img, LV_ALIGN_CENTER, 50, 50);
-//    lv_img_set_pivot(img, 0, 0);    /*Rotate around the top left corner*/
+    lv_img_set_pivot(img, 0, 0);    /*Rotate around the top left corner*/
 
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, img);
     lv_anim_set_exec_cb(&a, set_angle);
     lv_anim_set_values(&a, 0, 3600);
-    lv_anim_set_time(&a, 20000);
+    lv_anim_set_time(&a, 2000);
     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&a);
 
     lv_anim_set_exec_cb(&a, set_zoom);
     lv_anim_set_values(&a, 128, 512);
-    lv_anim_set_playback_time(&a, 10000);
-//    lv_anim_start(&a);
+    lv_anim_set_playback_time(&a, 1000);
+    lv_anim_start(&a);
 }
 
 #endif

@@ -123,7 +123,6 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_c
     bool mask_any = lv_draw_mask_is_any(&draw_area);
     bool transform = draw_dsc->angle != 0 || draw_dsc->zoom != LV_IMG_ZOOM_NONE ? true : false;
 
-
     lv_area_t blend_area;
     lv_draw_sw_blend_dsc_t blend_dsc;
 
@@ -187,7 +186,8 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_c
             lv_area_copy(&transform_area, &blend_area);
             lv_area_move(&transform_area, -coords->x1, -coords->y1);
             if(transform) {
-                tranform_cb(&transform_area, src_buf, src_w, src_h, src_w, draw_dsc, cf, rgb_buf, mask_buf);
+                lv_draw_transform(draw_ctx, &transform_area, src_buf, src_w, src_h, src_w,
+                                  draw_dsc, cf, rgb_buf, mask_buf);
             }
             else {
                 convert_cb(&transform_area, src_buf, src_w, src_h, src_w, draw_dsc, cf, rgb_buf, mask_buf);

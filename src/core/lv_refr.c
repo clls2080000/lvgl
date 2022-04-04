@@ -343,10 +343,7 @@ void _lv_disp_refr_timer(lv_timer_t * tmr)
         disp_refr->inv_p = 0;
 
         elaps = lv_tick_elaps(start);
-        static float tmp = 0;
-        if(tmp == 0) tmp = 15;
-        else tmp = tmp * 0.99 + elaps * 0.01;
-        printf("%0.1f\n", tmp);
+
         /*Call monitor cb if present*/
         if(disp_refr->driver->monitor_cb) {
             disp_refr->driver->monitor_cb(disp_refr->driver, elaps, px_num);
