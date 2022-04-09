@@ -466,6 +466,10 @@ static void lv_obj_draw(lv_event_t * e)
             info->res = LV_COVER_RES_MASKED;
             return;
         }
+        if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT)) {
+            info->res = LV_COVER_RES_NOT_COVER;
+            return;
+        }
 
         /*Most trivial test. Is the mask fully IN the object? If no it surely doesn't cover it*/
         lv_coord_t r = lv_obj_get_style_radius(obj, LV_PART_MAIN);
@@ -529,7 +533,6 @@ static void lv_obj_draw(lv_event_t * e)
         part_dsc.draw_area = &coords;
         part_dsc.part = LV_PART_MAIN;
         lv_event_send(obj, LV_EVENT_DRAW_PART_BEGIN, &part_dsc);
-
 
 #if LV_DRAW_COMPLEX
         /*With clip corner enabled draw the bg img separately to make it clipped*/
@@ -845,9 +848,21 @@ static void lv_obj_event(const lv_obj_class_t * class_p, lv_event_t * e)
         }
     }
     else if(code == LV_EVENT_REFR_EXT_DRAW_SIZE) {
-        lv_coord_t * s = lv_event_get_param(e);
-        lv_coord_t d = lv_obj_calculate_ext_draw_size(obj, LV_PART_MAIN);
-        *s = LV_MAX(*s, d);
+        lv_coord_t zoom = lv_obj_get_style_transform_zoom(obj, LV_PART_MAIN);
+        lv_coord_t angle = lv_obj_get_style_transform_angle(obj, LV_PART_MAIN);
+
+        /*If the image has angle provide enough room for the rotated corners*/
+        if(angle || zoom != LV_IMG_ZOOM_NONE) {
+            lv_point_t pivot = {0, 0};
+            lv_area_t a;
+            lv_coord_t w = lv_obj_get_width(obj);
+            lv_coord_t h = lv_obj_get_height(obj);
+            _lv_img_buf_get_transformed_area(&a, w, h, angle, zoom, &pivot);
+            lv_event_set_ext_draw_size(e, -a.x1);
+            lv_event_set_ext_draw_size(e, -a.y1);
+            lv_event_set_ext_draw_size(e, a.x2 - w);
+            lv_event_set_ext_draw_size(e, a.y2 - h);
+        }
     }
     else if(code == LV_EVENT_DRAW_MAIN || code == LV_EVENT_DRAW_POST || code == LV_EVENT_COVER_CHECK) {
         lv_obj_draw(e);

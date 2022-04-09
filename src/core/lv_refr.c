@@ -138,18 +138,37 @@ void lv_refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
     lv_coord_t ext_draw_size = _lv_obj_get_ext_draw_size(obj);
     lv_area_increase(&obj_coords_ext, ext_draw_size, ext_draw_size);
     bool com_clip_res = _lv_area_intersect(&clip_coords_for_obj, clip_area_ori, &obj_coords_ext);
-
+    bool refr_children = true;
     /*If the object is visible on the current clip area OR has overflow visible draw it.
      *With overflow visible drawing should happen to apply the masks which might affect children */
-    bool should_draw = com_clip_res || lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    bool should_draw = com_clip_res || lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE || 1);
     if(should_draw) {
         draw_ctx->clip_area = &clip_coords_for_obj;
 
         /*Draw the object*/
-        lv_event_send(obj, LV_EVENT_DRAW_MAIN_BEGIN, draw_ctx);
-        lv_event_send(obj, LV_EVENT_DRAW_MAIN, draw_ctx);
-        lv_event_send(obj, LV_EVENT_DRAW_MAIN_END, draw_ctx);
-
+        if(obj->spec_attr && obj->spec_attr->snapshot) {
+            lv_draw_img_dsc_t dsc;
+            lv_draw_img_dsc_init(&dsc);
+            lv_obj_init_draw_img_dsc(obj, 0, &dsc);
+            dsc.angle = lv_obj_get_style_transform_angle(obj, 0);
+            dsc.zoom = lv_obj_get_style_transform_zoom(obj, 0);
+            lv_area_t coords;
+            _lv_area_set_pos(&coords, obj->coords.x1, obj->coords.y1);
+            lv_area_set_width(&coords, obj->spec_attr->snapshot->header.w);
+            lv_area_set_height(&coords, obj->spec_attr->snapshot->header.h);
+            lv_coord_t ext_draw = _lv_obj_get_ext_draw_size(obj);
+            lv_area_move(&coords, -ext_draw, -ext_draw);
+            dsc.pivot.x = ext_draw;
+            dsc.pivot.y = ext_draw;
+            lv_draw_img(draw_ctx, &dsc, &coords, obj->spec_attr->snapshot);
+            refr_children = false;
+            should_draw = false;
+        }
+        else {
+            lv_event_send(obj, LV_EVENT_DRAW_MAIN_BEGIN, draw_ctx);
+            lv_event_send(obj, LV_EVENT_DRAW_MAIN, draw_ctx);
+            lv_event_send(obj, LV_EVENT_DRAW_MAIN_END, draw_ctx);
+        }
 #if LV_USE_REFR_DEBUG
         lv_color_t debug_color = lv_color_make(lv_rand(0, 0xFF), lv_rand(0, 0xFF), lv_rand(0, 0xFF));
         lv_draw_rect_dsc_t draw_dsc;
@@ -165,9 +184,9 @@ void lv_refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
 
     /*With overflow visible keep the previous clip area to let the children visible out of this object too
      *With not overflow visible limit the clip are to the object's coordinates to clip the children*/
-    bool refr_children = true;
+
     lv_area_t clip_coords_for_children;
-    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
+    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE) || 1) {
         clip_coords_for_children  = *clip_area_ori;
     }
     else {
@@ -280,6 +299,26 @@ void _lv_refr_set_disp_refreshing(lv_disp_t * disp)
 {
     disp_refr = disp;
 }
+#include "../extra/others/snapshot/lv_snapshot.h"
+
+void lv_obj_update_snapshot(lv_obj_t * parent)
+{
+    uint32_t child_cnt = lv_obj_get_child_cnt(parent);
+    uint32_t i;
+    for(i = 0; i < child_cnt; i++) {
+        lv_obj_t * child = lv_obj_get_child(parent, i);
+        lv_obj_update_snapshot(child);
+        if(_lv_obj_get_snapshot_update(child)) {
+            if(child->spec_attr->snapshot) {
+                lv_snapshot_free(child->spec_attr->snapshot);
+                child->spec_attr->snapshot = NULL;
+            }
+
+            child->spec_attr->snapshot = lv_snapshot_take(child, LV_IMG_CF_TRUE_COLOR_ALPHA);
+            child->spec_attr->snapshot_update_req = 0;
+        }
+    }
+}
 
 /**
  * Called periodically to handle the refreshing
@@ -313,6 +352,8 @@ void _lv_disp_refr_timer(lv_timer_t * tmr)
     lv_obj_update_layout(disp_refr->top_layer);
     lv_obj_update_layout(disp_refr->sys_layer);
 
+    lv_obj_update_snapshot(disp_refr->act_scr);
+
     /*Do nothing if there is no active screen*/
     if(disp_refr->act_scr == NULL) {
         disp_refr->inv_p = 0;
@@ -324,6 +365,7 @@ void _lv_disp_refr_timer(lv_timer_t * tmr)
     lv_refr_join_area();
 
     lv_refr_areas();
+
 
     /*If refresh happened ...*/
     if(disp_refr->inv_p != 0) {

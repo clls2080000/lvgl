@@ -206,6 +206,9 @@ bool lv_obj_refr_size(lv_obj_t * obj)
     bool on2 = _lv_area_is_in(&obj->coords, &parent_fit_area, 0);
     if(on1 || (!on1 && on2)) lv_obj_scrollbar_invalidate(parent);
 
+    //    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT))
+    lv_obj_refresh_ext_draw_size(obj);
+
     return true;
 }
 
@@ -627,6 +630,7 @@ void lv_obj_refr_pos(lv_obj_t * obj)
 {
     if(lv_obj_is_layout_positioned(obj)) return;
 
+
     lv_obj_t * parent = lv_obj_get_parent(obj);
     lv_coord_t x = lv_obj_get_style_x(obj, LV_PART_MAIN);
     lv_coord_t y = lv_obj_get_style_y(obj, LV_PART_MAIN);
@@ -704,6 +708,9 @@ void lv_obj_refr_pos(lv_obj_t * obj)
 
 void lv_obj_move_to(lv_obj_t * obj, lv_coord_t x, lv_coord_t y)
 {
+    bool snapshot_update_req = false;
+    if(obj->spec_attr) snapshot_update_req = obj->spec_attr->snapshot_update_req;
+
     /*Convert x and y to absolute coordinates*/
     lv_obj_t * parent = obj->parent;
 
@@ -773,6 +780,8 @@ void lv_obj_move_to(lv_obj_t * obj, lv_coord_t x, lv_coord_t y)
         bool on2 = _lv_area_is_in(&obj->coords, &parent_fit_area, 0);
         if(on1 || (!on1 && on2)) lv_obj_scrollbar_invalidate(parent);
     }
+
+    if(obj->spec_attr) obj->spec_attr->snapshot_update_req = snapshot_update_req;
 }
 
 void lv_obj_move_children_by(lv_obj_t * obj, lv_coord_t x_diff, lv_coord_t y_diff, bool ignore_floating)
@@ -791,7 +800,6 @@ void lv_obj_move_children_by(lv_obj_t * obj, lv_coord_t x_diff, lv_coord_t y_dif
     }
 }
 
-
 void lv_obj_invalidate_area(const lv_obj_t * obj, const lv_area_t * area)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
@@ -800,16 +808,22 @@ void lv_obj_invalidate_area(const lv_obj_t * obj, const lv_area_t * area)
     lv_area_copy(&area_tmp, area);
     bool visible = lv_obj_area_is_visible(obj, &area_tmp);
 
-    if(visible) _lv_inv_area(lv_obj_get_disp(obj), &area_tmp);
+    if(visible) {
+        lv_disp_t * d = lv_obj_get_disp(obj);
+        _lv_inv_area(lv_obj_get_disp(obj), &area_tmp);
+        _lv_obj_request_snapshot_update(obj);
+    }
 }
 
 void lv_obj_invalidate(const lv_obj_t * obj)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
+    _lv_obj_request_snapshot_update(obj);
+
     /*If the object has overflow visible it can be drawn anywhere on its parent
      *It needs to be checked recursively*/
-    while(lv_obj_get_parent(obj) && lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
+    while(lv_obj_get_parent(obj) && lv_obj_has_flag_any(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE | LV_OBJ_FLAG_SNAPSHOT)) {
         obj = lv_obj_get_parent(obj);
     }
 

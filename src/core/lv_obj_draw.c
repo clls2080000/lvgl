@@ -373,6 +373,26 @@ lv_coord_t _lv_obj_get_ext_draw_size(const lv_obj_t * obj)
     else return 0;
 }
 
+bool _lv_obj_get_snapshot_update(const lv_obj_t * obj)
+{
+    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT) == false) return false;
+
+    if(obj->spec_attr) return obj->spec_attr->snapshot_update_req;
+    else return false;
+}
+
+
+void _lv_obj_request_snapshot_update(lv_obj_t * obj)
+{
+    if(obj) {
+        if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT)) {
+            lv_obj_allocate_spec_attr(obj);
+            obj->spec_attr->snapshot_update_req = 1;
+        }
+        _lv_obj_request_snapshot_update(lv_obj_get_parent(obj));
+    }
+}
+
 /**********************
  *   STATIC FUNCTIONS
  **********************/
