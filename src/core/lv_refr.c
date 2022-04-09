@@ -141,7 +141,7 @@ void lv_refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
     bool refr_children = true;
     /*If the object is visible on the current clip area OR has overflow visible draw it.
      *With overflow visible drawing should happen to apply the masks which might affect children */
-    bool should_draw = com_clip_res || lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE || 1);
+    bool should_draw = com_clip_res || lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     if(should_draw) {
         draw_ctx->clip_area = &clip_coords_for_obj;
 
@@ -152,6 +152,7 @@ void lv_refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             lv_obj_init_draw_img_dsc(obj, 0, &dsc);
             dsc.angle = lv_obj_get_style_transform_angle(obj, 0);
             dsc.zoom = lv_obj_get_style_transform_zoom(obj, 0);
+            //            dsc.antialias = 0;
             lv_area_t coords;
             _lv_area_set_pos(&coords, obj->coords.x1, obj->coords.y1);
             lv_area_set_width(&coords, obj->spec_attr->snapshot->header.w);
@@ -314,6 +315,7 @@ void lv_obj_update_snapshot(lv_obj_t * parent)
                 child->spec_attr->snapshot = NULL;
             }
 
+            LV_LOG("Update snapshot\n");
             child->spec_attr->snapshot = lv_snapshot_take(child, LV_IMG_CF_TRUE_COLOR_ALPHA);
             child->spec_attr->snapshot_update_req = 0;
         }

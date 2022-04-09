@@ -72,6 +72,9 @@ static lv_obj_t * indev_obj_act = NULL;
  */
 static void transform_point(lv_obj_t * obj, lv_point_t * p)
 {
+
+    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT) == false) return;
+
 #if LV_DRAW_COMPLEX
     lv_point_t pivot;
     pivot.x = obj->coords.x1;

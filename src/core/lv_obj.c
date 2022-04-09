@@ -237,6 +237,10 @@ void lv_obj_add_flag(lv_obj_t * obj, lv_obj_flag_t f)
         lv_obj_invalidate_area(obj, &hor_area);
         lv_obj_invalidate_area(obj, &ver_area);
     }
+
+    if(f & LV_OBJ_FLAG_SNAPSHOT) {
+        lv_obj_refresh_ext_draw_size(obj);
+    }
 }
 
 void lv_obj_clear_flag(lv_obj_t * obj, lv_obj_flag_t f)
@@ -263,6 +267,10 @@ void lv_obj_clear_flag(lv_obj_t * obj, lv_obj_flag_t f)
 
     if((was_on_layout != lv_obj_is_layout_positioned(obj)) || (f & (LV_OBJ_FLAG_LAYOUT_1 |  LV_OBJ_FLAG_LAYOUT_2))) {
         lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
+    }
+
+    if(f & LV_OBJ_FLAG_SNAPSHOT) {
+        lv_obj_refresh_ext_draw_size(obj);
     }
 }
 

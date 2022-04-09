@@ -206,8 +206,8 @@ bool lv_obj_refr_size(lv_obj_t * obj)
     bool on2 = _lv_area_is_in(&obj->coords, &parent_fit_area, 0);
     if(on1 || (!on1 && on2)) lv_obj_scrollbar_invalidate(parent);
 
-    //    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT))
-    lv_obj_refresh_ext_draw_size(obj);
+    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT))
+        lv_obj_refresh_ext_draw_size(obj);
 
     return true;
 }

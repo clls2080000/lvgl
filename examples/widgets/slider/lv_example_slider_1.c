@@ -14,7 +14,7 @@ void lv_example_slider_1(void)
 	lv_obj_set_size(cont, 300, 300);
     lv_obj_center(cont);
     lv_obj_set_style_transform_angle(cont, -100, 0);
-    lv_obj_set_style_transform_zoom(cont, 150, 0);
+    lv_obj_set_style_transform_zoom(cont, 200, 0);
 //    lv_obj_add_flag(cont, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
 
     /*Create a slider in the center of the display*/
@@ -23,7 +23,7 @@ void lv_example_slider_1(void)
     lv_obj_center(slider);
     lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_set_style_transform_angle(slider, 100, 0);
-    lv_obj_set_style_transform_zoom(slider, 100, 0);
+    lv_obj_set_style_transform_zoom(slider, 230, 0);
     /*Create a label below the slider*/
     slider_label = lv_label_create(cont);
     lv_label_set_text(slider_label, "123456789");
@@ -35,6 +35,9 @@ void lv_example_slider_1(void)
     lv_obj_allocate_spec_attr(cont);
     lv_obj_add_flag(cont, LV_OBJ_FLAG_SNAPSHOT);
     lv_obj_invalidate(cont);
+
+
+    lv_obj_set_style_border_color(cont, lv_color_hex(0xff0000), 0);
 
 }
 static void slider_event_cb(lv_event_t * e)
