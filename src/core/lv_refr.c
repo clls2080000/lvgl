@@ -186,7 +186,7 @@ void lv_refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
      *With not overflow visible limit the clip are to the object's coordinates to clip the children*/
 
     lv_area_t clip_coords_for_children;
-    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE) || 1) {
+    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
         clip_coords_for_children  = *clip_area_ori;
     }
     else {
