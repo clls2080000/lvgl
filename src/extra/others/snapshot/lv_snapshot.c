@@ -47,6 +47,7 @@ uint32_t lv_snapshot_buf_size_needed(lv_obj_t * obj, lv_img_cf_t cf)
 {
     switch(cf) {
         case LV_IMG_CF_TRUE_COLOR_ALPHA:
+        case LV_IMG_CF_TRUE_COLOR:
         case LV_IMG_CF_ALPHA_1BIT:
         case LV_IMG_CF_ALPHA_2BIT:
         case LV_IMG_CF_ALPHA_4BIT:
@@ -86,6 +87,7 @@ lv_res_t lv_snapshot_take_to_buf(lv_obj_t * obj, lv_img_cf_t cf, lv_img_dsc_t * 
 
     switch(cf) {
         case LV_IMG_CF_TRUE_COLOR_ALPHA:
+        case LV_IMG_CF_TRUE_COLOR:
         case LV_IMG_CF_ALPHA_1BIT:
         case LV_IMG_CF_ALPHA_2BIT:
         case LV_IMG_CF_ALPHA_4BIT:
@@ -123,7 +125,6 @@ lv_res_t lv_snapshot_take_to_buf(lv_obj_t * obj, lv_img_cf_t cf, lv_img_dsc_t * 
     lv_disp_t fake_disp;
     lv_memset_00(&fake_disp, sizeof(lv_disp_t));
     fake_disp.driver = &driver;
-
 
     lv_draw_ctx_t * draw_ctx = lv_mem_alloc(obj_disp->driver->draw_ctx_size);
     LV_ASSERT_MALLOC(draw_ctx);

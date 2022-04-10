@@ -809,7 +809,6 @@ void lv_obj_invalidate_area(const lv_obj_t * obj, const lv_area_t * area)
     bool visible = lv_obj_area_is_visible(obj, &area_tmp);
 
     if(visible) {
-        lv_disp_t * d = lv_obj_get_disp(obj);
         _lv_inv_area(lv_obj_get_disp(obj), &area_tmp);
         _lv_obj_request_snapshot_update(obj);
     }
@@ -821,22 +820,27 @@ void lv_obj_invalidate(const lv_obj_t * obj)
 
     _lv_obj_request_snapshot_update(obj);
 
-    /*If the object has overflow visible it can be drawn anywhere on its parent
+    /*If any parent has overflow visible it can be drawn anywhere on its parent
      *It needs to be checked recursively*/
-    while(lv_obj_get_parent(obj) && lv_obj_has_flag_any(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE | LV_OBJ_FLAG_SNAPSHOT)) {
-        obj = lv_obj_get_parent(obj);
+    const lv_obj_t * target_obj = obj;
+    const lv_obj_t * parent = obj;
+    while(parent) {
+        if(lv_obj_has_flag_any(parent, LV_OBJ_FLAG_SNAPSHOT)) {
+            target_obj = parent;
+        }
+        parent = lv_obj_get_parent(parent);
     }
 
     /*Truncate the area to the object*/
     lv_area_t obj_coords;
-    lv_coord_t ext_size = _lv_obj_get_ext_draw_size(obj);
-    lv_area_copy(&obj_coords, &obj->coords);
+    lv_coord_t ext_size = _lv_obj_get_ext_draw_size(target_obj);
+    lv_area_copy(&obj_coords, &target_obj->coords);
     obj_coords.x1 -= ext_size;
     obj_coords.y1 -= ext_size;
     obj_coords.x2 += ext_size;
     obj_coords.y2 += ext_size;
 
-    lv_obj_invalidate_area(obj, &obj_coords);
+    lv_obj_invalidate_area(target_obj, &obj_coords);
 
 }
 
@@ -855,7 +859,7 @@ bool lv_obj_area_is_visible(const lv_obj_t * obj, lv_area_t * area)
     }
 
     /*Truncate the area to the object*/
-    if(!lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
+    if(!lv_obj_has_flag_any(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE | LV_OBJ_FLAG_SNAPSHOT)) {
         lv_area_t obj_coords;
         lv_coord_t ext_size = _lv_obj_get_ext_draw_size(obj);
         lv_area_copy(&obj_coords, &obj->coords);
@@ -875,7 +879,7 @@ bool lv_obj_area_is_visible(const lv_obj_t * obj, lv_area_t * area)
         if(lv_obj_has_flag(par, LV_OBJ_FLAG_HIDDEN)) return false;
 
         /*Truncate to the parent and if no common parts break*/
-        if(!lv_obj_has_flag(par, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
+        if(!lv_obj_has_flag_any(par, LV_OBJ_FLAG_OVERFLOW_VISIBLE | LV_OBJ_FLAG_SNAPSHOT)) {
             if(!_lv_area_intersect(area, area, &par->coords)) return false;
         }
 

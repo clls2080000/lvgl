@@ -17,6 +17,7 @@
 #include "../misc/lv_gc.h"
 #include "../draw/lv_draw.h"
 #include "../font/lv_font_fmt_txt.h"
+#include "../extra/others/snapshot/lv_snapshot.h"
 
 #if LV_USE_PERF_MONITOR || LV_USE_MEM_MONITOR
     #include "../widgets/lv_label.h"
@@ -152,7 +153,6 @@ void lv_refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             lv_obj_init_draw_img_dsc(obj, 0, &dsc);
             dsc.angle = lv_obj_get_style_transform_angle(obj, 0);
             dsc.zoom = lv_obj_get_style_transform_zoom(obj, 0);
-            //            dsc.antialias = 0;
             lv_area_t coords;
             _lv_area_set_pos(&coords, obj->coords.x1, obj->coords.y1);
             lv_area_set_width(&coords, obj->spec_attr->snapshot->header.w);
@@ -185,7 +185,6 @@ void lv_refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
 
     /*With overflow visible keep the previous clip area to let the children visible out of this object too
      *With not overflow visible limit the clip are to the object's coordinates to clip the children*/
-
     lv_area_t clip_coords_for_children;
     if(lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
         clip_coords_for_children  = *clip_area_ori;
@@ -300,7 +299,6 @@ void _lv_refr_set_disp_refreshing(lv_disp_t * disp)
 {
     disp_refr = disp;
 }
-#include "../extra/others/snapshot/lv_snapshot.h"
 
 void lv_obj_update_snapshot(lv_obj_t * parent)
 {

@@ -239,6 +239,7 @@ void lv_obj_add_flag(lv_obj_t * obj, lv_obj_flag_t f)
     }
 
     if(f & LV_OBJ_FLAG_SNAPSHOT) {
+        _lv_obj_request_snapshot_update(obj);
         lv_obj_refresh_ext_draw_size(obj);
     }
 }
