@@ -31,25 +31,20 @@ void lv_example_slider_1(void)
 
     lv_obj_set_style_bg_color(cont, lv_color_hex(0xff0000), 0);
     lv_obj_set_style_opa(cont, 200, 0);
+    lv_obj_add_flag(cont, LV_OBJ_FLAG_SNAPSHOT);
+    lv_obj_set_style_transform_angle(cont, -100, 0);
 
     lv_obj_add_flag(slider, LV_OBJ_FLAG_SNAPSHOT);
-//    lv_obj_add_flag(cont, LV_OBJ_FLAG_SNAPSHOT | 0);
-
-    lv_obj_t * cont2 = lv_obj_create(cont);
-    lv_obj_set_pos(cont2, -100, -100);
-    lv_obj_t * sw = lv_switch_create(cont2);
-    lv_obj_set_pos(sw, 10, 10);
 
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, slider);
     lv_anim_set_exec_cb(&a, set_angle);
     lv_anim_set_values(&a, 0, 3600);
-    lv_anim_set_time(&a, 5000);
+    lv_anim_set_time(&a, 10000);
     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-//    lv_anim_start(&a);
+    lv_anim_start(&a);
 
-    lv_obj_set_style_transform_angle(slider, -100, 0);
 
 }
 static void slider_event_cb(lv_event_t * e)
