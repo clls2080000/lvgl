@@ -294,7 +294,7 @@ static void argb_and_rgb_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t sr
             cbuf[x].full = *((uint32_t *)src_tmp);
 #endif
 
-            lv_opa_t a = has_alpha ? 0xff : src_tmp[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
+            lv_opa_t a = has_alpha ? src_tmp[LV_IMG_PX_SIZE_ALPHA_BYTE - 1] : 0xff;
 
             if((xs_int == 0 && x_next < 0) || (xs_int == src_w - 1 && x_next > 0))  {
                 abuf[x] = (a * (0xFF - xs_fract)) >> 8;
