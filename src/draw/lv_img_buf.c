@@ -483,68 +483,23 @@ void _lv_img_buf_get_transformed_area(lv_area_t * res, lv_coord_t w, lv_coord_t 
         return;
     }
 
-    res->x1 = (((int32_t)(-pivot->x) * zoom) >> 8) - 1;
-    res->y1 = (((int32_t)(-pivot->y) * zoom) >> 8) - 1;
-    res->x2 = (((int32_t)(w - pivot->x) * zoom) >> 8) + 2;
-    res->y2 = (((int32_t)(h - pivot->y) * zoom) >> 8) + 2;
 
-    if(angle == 0) {
-        res->x1 += pivot->x;
-        res->y1 += pivot->y;
-        res->x2 += pivot->x;
-        res->y2 += pivot->y;
-        return;
-    }
 
-    int32_t angle_low = angle / 10;
-    int32_t angle_high = angle_low + 1;
-    int32_t angle_rem = angle  - (angle_low * 10);
+    lv_point_t p[4] = {
+        {0, 0},
+        {w - 1, 0},
+        {0, h - 1},
+        {w - 1, h - 1},
+    };
+    transform_point(&p[0], angle, zoom, pivot, false);
+    transform_point(&p[1], angle, zoom, pivot, false);
+    transform_point(&p[2], angle, zoom, pivot, false);
+    transform_point(&p[3], angle, zoom, pivot, false);
+    res->x1 = LV_MIN4(p[0].x, p[1].x, p[2].x, p[3].x);
+    res->x2 = LV_MAX4(p[0].x, p[1].x, p[2].x, p[3].x);
+    res->y1 = LV_MIN4(p[0].y, p[1].y, p[2].y, p[3].y);
+    res->y2 = LV_MAX4(p[0].y, p[1].y, p[2].y, p[3].y);
 
-    int32_t s1 = lv_trigo_sin(angle_low);
-    int32_t s2 = lv_trigo_sin(angle_high);
-
-    int32_t c1 = lv_trigo_sin(angle_low + 90);
-    int32_t c2 = lv_trigo_sin(angle_high + 90);
-
-    int32_t sinma = (s1 * (10 - angle_rem) + s2 * angle_rem) / 10;
-    int32_t cosma = (c1 * (10 - angle_rem) + c2 * angle_rem) / 10;
-
-    /*Use smaller value to avoid overflow*/
-    sinma = sinma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
-    cosma = cosma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
-
-    lv_point_t lt;
-    lv_point_t rt;
-    lv_point_t lb;
-    lv_point_t rb;
-
-    lv_coord_t xt;
-    lv_coord_t yt;
-
-    xt = res->x1;
-    yt = res->y1;
-    lt.x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->x;
-    lt.y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->y;
-
-    xt = res->x2;
-    yt = res->y1;
-    rt.x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->x;
-    rt.y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->y;
-
-    xt = res->x1;
-    yt = res->y2;
-    lb.x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->x;
-    lb.y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->y;
-
-    xt = res->x2;
-    yt = res->y2;
-    rb.x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->x;
-    rb.y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->y;
-
-    res->x1 = LV_MIN4(lb.x, lt.x, rb.x, rt.x);
-    res->x2 = LV_MAX4(lb.x, lt.x, rb.x, rt.x);
-    res->y1 = LV_MIN4(lb.y, lt.y, rb.y, rt.y);
-    res->y2 = LV_MAX4(lb.y, lt.y, rb.y, rt.y);
 #else
     LV_UNUSED(angle);
     LV_UNUSED(zoom);

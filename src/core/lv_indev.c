@@ -61,36 +61,22 @@ static lv_obj_t * indev_obj_act = NULL;
  *   GLOBAL FUNCTIONS
  **********************/
 
-/**
- * Get the area of a rectangle if its rotated and scaled
- * @param res store the coordinates here
- * @param w width of the rectangle to transform
- * @param h height of the rectangle to transform
- * @param angle angle of rotation
- * @param zoom zoom, (256 no zoom)
- * @param pivot x,y pivot coordinates of rotation
- */
-static void transform_point(lv_obj_t * obj, lv_point_t * p)
+void transform_point(lv_point_t * p, lv_coord_t angle, lv_coord_t zoom, lv_point_t * pivot, bool inv)
 {
-
-    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT) == false) return;
-
-#if LV_DRAW_COMPLEX
-    lv_point_t pivot;
-    pivot.x = obj->coords.x1;
-    pivot.y = obj->coords.y1;
-    int16_t angle = -lv_obj_get_style_transform_angle(obj, 0);
-    int16_t zoom = (256 * 256) / lv_obj_get_style_transform_zoom(obj, 0);
+    if(inv) {
+        angle = -angle;
+        zoom = (256 * 256) / zoom;
+    }
 
     if(angle == 0 && zoom == LV_IMG_ZOOM_NONE) {
         return;
     }
 
-    p->x -= pivot.x;
-    p->y -= pivot.y;
+    p->x -= pivot->x;
+    p->y -= pivot->y;
 
-    p->x = (((int32_t)(p->x) * zoom) >> 8) + pivot.x;
-    p->y = (((int32_t)(p->y) * zoom) >> 8) + pivot.y;
+    p->x = (((int32_t)(p->x) * zoom) >> 8) + pivot->x;
+    p->y = (((int32_t)(p->y) * zoom) >> 8) + pivot->y;
 
     if(angle == 0) {
         return;
@@ -103,11 +89,33 @@ static void transform_point(lv_obj_t * obj, lv_point_t * p)
     int32_t sinma = lv_trigo_sin(angle) >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
     int32_t cosma = lv_trigo_cos(angle) >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
 
-    lv_coord_t xt = p->x - pivot.x;
-    lv_coord_t yt = p->y - pivot.y;
+    lv_coord_t xt = p->x - pivot->x;
+    lv_coord_t yt = p->y - pivot->y;
 
-    p->x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot.x;
-    p->y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot.y;
+    p->x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->x;
+    p->y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->y;
+
+}
+/**
+ * Get the area of a rectangle if its rotated and scaled
+ * @param res store the coordinates here
+ * @param w width of the rectangle to transform
+ * @param h height of the rectangle to transform
+ * @param angle angle of rotation
+ * @param zoom zoom, (256 no zoom)
+ * @param pivot x,y pivot coordinates of rotation
+ */
+void transform_obj_point(lv_obj_t * obj, lv_point_t * p, bool inv)
+{
+
+#if LV_DRAW_COMPLEX
+    lv_point_t pivot;
+    pivot.x = obj->coords.x1;
+    pivot.y = obj->coords.y1;
+    int16_t angle = lv_obj_get_style_transform_angle(obj, 0);
+    int16_t zoom = lv_obj_get_style_transform_zoom(obj, 0);
+
+    transform_point(p, angle, zoom, &pivot, inv);
 #else
     LV_UNUSED(angle);
     LV_UNUSED(zoom);
@@ -119,11 +127,17 @@ static void transform_point(lv_obj_t * obj, lv_point_t * p)
 #endif
 }
 
-static void transform_point_recursive(lv_obj_t * obj, lv_point_t * p)
+void transform_point_recursive(lv_obj_t * obj, lv_point_t * p, bool inv)
 {
     if(obj) {
-        transform_point_recursive(lv_obj_get_parent(obj), p);
-        transform_point(obj, p);
+        if(inv) {
+            transform_point_recursive(lv_obj_get_parent(obj), p, inv);
+            transform_obj_point(obj, p, inv);
+        }
+        else {
+            transform_obj_point(obj, p, inv);
+            transform_point_recursive(lv_obj_get_parent(obj), p, inv);
+        }
     }
 }
 
@@ -371,7 +385,7 @@ lv_obj_t * lv_indev_search_obj(lv_obj_t * obj, lv_point_t * point)
     if(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) return NULL;
 
     lv_point_t p_trans = *point;
-    transform_point(obj, &p_trans);
+    transform_obj_point(obj, &p_trans, true);
 
     bool hit_test_ok = lv_obj_hit_test(obj, &p_trans);
 
@@ -918,7 +932,7 @@ static void indev_proc_press(_lv_indev_proc_t * proc)
         if(indev_reset_check(proc)) return;
     }
 
-    transform_point_recursive(indev_obj_act, &proc->types.pointer.act_point);
+    transform_point_recursive(indev_obj_act, &proc->types.pointer.act_point, true);
 
 
 

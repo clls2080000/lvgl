@@ -237,11 +237,6 @@ void lv_obj_add_flag(lv_obj_t * obj, lv_obj_flag_t f)
         lv_obj_invalidate_area(obj, &hor_area);
         lv_obj_invalidate_area(obj, &ver_area);
     }
-
-    if(f & LV_OBJ_FLAG_SNAPSHOT) {
-        _lv_obj_request_snapshot_update(obj);
-        lv_obj_refresh_ext_draw_size(obj);
-    }
 }
 
 void lv_obj_clear_flag(lv_obj_t * obj, lv_obj_flag_t f)
@@ -270,9 +265,6 @@ void lv_obj_clear_flag(lv_obj_t * obj, lv_obj_flag_t f)
         lv_obj_mark_layout_as_dirty(lv_obj_get_parent(obj));
     }
 
-    if(f & LV_OBJ_FLAG_SNAPSHOT) {
-        lv_obj_refresh_ext_draw_size(obj);
-    }
 }
 
 void lv_obj_add_state(lv_obj_t * obj, lv_state_t state)
@@ -475,8 +467,8 @@ static void lv_obj_draw(lv_event_t * e)
             info->res = LV_COVER_RES_MASKED;
             return;
         }
-        if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT)) {
-            info->res = LV_COVER_RES_NOT_COVER;
+        if(_lv_obj_is_intermediate_layer(obj)) {
+            info->res = LV_COVER_RES_MASKED;
             return;
         }
 
@@ -860,18 +852,18 @@ static void lv_obj_event(const lv_obj_class_t * class_p, lv_event_t * e)
         lv_coord_t zoom = lv_obj_get_style_transform_zoom(obj, LV_PART_MAIN);
         lv_coord_t angle = lv_obj_get_style_transform_angle(obj, LV_PART_MAIN);
 
-        /*If the image has angle provide enough room for the rotated corners*/
-        if(angle || zoom != LV_IMG_ZOOM_NONE) {
-            lv_point_t pivot = {0, 0};
-            lv_area_t a;
-            lv_coord_t w = lv_obj_get_width(obj);
-            lv_coord_t h = lv_obj_get_height(obj);
-            _lv_img_buf_get_transformed_area(&a, w, h, angle, zoom, &pivot);
-            lv_event_set_ext_draw_size(e, -a.x1);
-            lv_event_set_ext_draw_size(e, -a.y1);
-            lv_event_set_ext_draw_size(e, a.x2 - w);
-            lv_event_set_ext_draw_size(e, a.y2 - h);
-        }
+        //        /*If the image has angle provide enough room for the rotated corners*/
+        //        if(angle || zoom != LV_IMG_ZOOM_NONE) {
+        //            lv_point_t pivot = {0, 0};
+        //            lv_area_t a;
+        //            lv_coord_t w = lv_obj_get_width(obj);
+        //            lv_coord_t h = lv_obj_get_height(obj);
+        //            _lv_img_buf_get_transformed_area(&a, w, h, angle, zoom, &pivot);
+        //            lv_event_set_ext_draw_size(e, -a.x1);
+        //            lv_event_set_ext_draw_size(e, -a.y1);
+        //            lv_event_set_ext_draw_size(e, a.x2 - w);
+        //            lv_event_set_ext_draw_size(e, a.y2 - h);
+        //        }
     }
     else if(code == LV_EVENT_DRAW_MAIN || code == LV_EVENT_DRAW_POST || code == LV_EVENT_COVER_CHECK) {
         lv_obj_draw(e);

@@ -33,6 +33,12 @@ typedef enum {
     LV_COVER_RES_MASKED     = 2,
 } lv_cover_res_t;
 
+typedef enum {
+    LV_INTERMEDIATE_LAYER_TYPE_NONE,
+    LV_INTERMEDIATE_LAYER_TYPE_SIMPLE,
+    LV_INTERMEDIATE_LAYER_TYPE_TRANSFORM,
+} lv_intermediate_layer_type_t;
+
 typedef struct {
     lv_draw_ctx_t * draw_ctx;           /**< Draw context*/
     const struct _lv_obj_class_t * class_p;     /**< The class that sent the event */
@@ -152,18 +158,8 @@ void lv_obj_refresh_ext_draw_size(struct _lv_obj_t * obj);
  */
 lv_coord_t _lv_obj_get_ext_draw_size(const struct _lv_obj_t * obj);
 
-/**
- * Get whether snapshot update is required on an object
- * @param obj       pointer to an object
- * @return          true: update required; false: not required
- */
-bool _lv_obj_get_snapshot_update(const struct _lv_obj_t * obj);
 
-/**
- * Set the snapshot_update flag on the object an all the parent who have LV_OBJ_FLAG_SNAPSHOT set
- * @param obj       pointer to an object
- */
-void _lv_obj_request_snapshot_update(struct _lv_obj_t * obj);
+lv_intermediate_layer_type_t _lv_obj_is_intermediate_layer(const struct _lv_obj_t * obj);
 
 /**********************
  *      MACROS

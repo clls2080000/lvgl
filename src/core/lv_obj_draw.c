@@ -373,24 +373,12 @@ lv_coord_t _lv_obj_get_ext_draw_size(const lv_obj_t * obj)
     else return 0;
 }
 
-bool _lv_obj_get_snapshot_update(const lv_obj_t * obj)
+lv_intermediate_layer_type_t _lv_obj_is_intermediate_layer(const lv_obj_t * obj)
 {
-    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT) == false) return false;
-
-    if(obj->spec_attr) return obj->spec_attr->snapshot_update_req;
-    else return false;
-}
-
-
-void _lv_obj_request_snapshot_update(lv_obj_t * obj)
-{
-    if(obj) {
-        if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT)) {
-            lv_obj_allocate_spec_attr(obj);
-            obj->spec_attr->snapshot_update_req = 1;
-        }
-        _lv_obj_request_snapshot_update(lv_obj_get_parent(obj));
-    }
+    if(lv_obj_get_style_transform_angle(obj, 0) != 0) return LV_INTERMEDIATE_LAYER_TYPE_TRANSFORM;
+    if(lv_obj_get_style_transform_zoom(obj, 0) != 256) return LV_INTERMEDIATE_LAYER_TYPE_TRANSFORM;
+    if(lv_obj_get_style_opa(obj, 0) != LV_OPA_COVER) return LV_INTERMEDIATE_LAYER_TYPE_SIMPLE;
+    return LV_INTERMEDIATE_LAYER_TYPE_NONE;
 }
 
 /**********************

@@ -206,8 +206,7 @@ bool lv_obj_refr_size(lv_obj_t * obj)
     bool on2 = _lv_area_is_in(&obj->coords, &parent_fit_area, 0);
     if(on1 || (!on1 && on2)) lv_obj_scrollbar_invalidate(parent);
 
-    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_SNAPSHOT))
-        lv_obj_refresh_ext_draw_size(obj);
+    lv_obj_refresh_ext_draw_size(obj);
 
     return true;
 }
@@ -708,9 +707,6 @@ void lv_obj_refr_pos(lv_obj_t * obj)
 
 void lv_obj_move_to(lv_obj_t * obj, lv_coord_t x, lv_coord_t y)
 {
-    bool snapshot_update_req = false;
-    if(obj->spec_attr) snapshot_update_req = obj->spec_attr->snapshot_update_req;
-
     /*Convert x and y to absolute coordinates*/
     lv_obj_t * parent = obj->parent;
 
@@ -780,8 +776,6 @@ void lv_obj_move_to(lv_obj_t * obj, lv_coord_t x, lv_coord_t y)
         bool on2 = _lv_area_is_in(&obj->coords, &parent_fit_area, 0);
         if(on1 || (!on1 && on2)) lv_obj_scrollbar_invalidate(parent);
     }
-
-    if(obj->spec_attr) obj->spec_attr->snapshot_update_req = snapshot_update_req;
 }
 
 void lv_obj_move_children_by(lv_obj_t * obj, lv_coord_t x_diff, lv_coord_t y_diff, bool ignore_floating)
@@ -800,47 +794,52 @@ void lv_obj_move_children_by(lv_obj_t * obj, lv_coord_t x_diff, lv_coord_t y_dif
     }
 }
 
+void transform_point_recursive(lv_obj_t * obj, lv_point_t * p, bool inv);
+
 void lv_obj_invalidate_area(const lv_obj_t * obj, const lv_area_t * area)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
     lv_area_t area_tmp;
     lv_area_copy(&area_tmp, area);
-    bool visible = lv_obj_area_is_visible(obj, &area_tmp);
+    if(!lv_obj_area_is_visible(obj, &area_tmp)) return;
 
-    if(visible) {
-        _lv_inv_area(lv_obj_get_disp(obj), &area_tmp);
-        _lv_obj_request_snapshot_update(obj);
+
+    lv_point_t p[4] = {
+        {area_tmp.x1, area_tmp.y1},
+        {area_tmp.x1, area_tmp.y2},
+        {area_tmp.x2, area_tmp.y1},
+        {area_tmp.x2, area_tmp.y2},
+    };
+    transform_point_recursive(obj, &p[0], false);
+    transform_point_recursive(obj, &p[1], false);
+    transform_point_recursive(obj, &p[2], false);
+    transform_point_recursive(obj, &p[3], false);
+    area_tmp.x1 = LV_MIN4(p[0].x, p[1].x, p[2].x, p[3].x);
+    area_tmp.x2 = LV_MAX4(p[0].x, p[1].x, p[2].x, p[3].x);
+    area_tmp.y1 = LV_MIN4(p[0].y, p[1].y, p[2].y, p[3].y);
+    area_tmp.y2 = LV_MAX4(p[0].y, p[1].y, p[2].y, p[3].y);
+    lv_obj_t * parent = lv_obj_get_parent(obj);
+    if(parent) {
+        //        if(!lv_obj_area_is_visible(parent, &area_tmp)) return;
     }
+    _lv_inv_area(lv_obj_get_disp(obj),  &area_tmp);
 }
 
 void lv_obj_invalidate(const lv_obj_t * obj)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
-    _lv_obj_request_snapshot_update(obj);
-
-    /*If any parent has overflow visible it can be drawn anywhere on its parent
-     *It needs to be checked recursively*/
-    const lv_obj_t * target_obj = obj;
-    const lv_obj_t * parent = obj;
-    while(parent) {
-        if(lv_obj_has_flag_any(parent, LV_OBJ_FLAG_SNAPSHOT)) {
-            target_obj = parent;
-        }
-        parent = lv_obj_get_parent(parent);
-    }
-
     /*Truncate the area to the object*/
     lv_area_t obj_coords;
-    lv_coord_t ext_size = _lv_obj_get_ext_draw_size(target_obj);
-    lv_area_copy(&obj_coords, &target_obj->coords);
+    lv_coord_t ext_size = _lv_obj_get_ext_draw_size(obj);
+    lv_area_copy(&obj_coords, &obj->coords);
     obj_coords.x1 -= ext_size;
     obj_coords.y1 -= ext_size;
     obj_coords.x2 += ext_size;
     obj_coords.y2 += ext_size;
 
-    lv_obj_invalidate_area(target_obj, &obj_coords);
+    lv_obj_invalidate_area(obj, &obj_coords);
 
 }
 
@@ -859,7 +858,7 @@ bool lv_obj_area_is_visible(const lv_obj_t * obj, lv_area_t * area)
     }
 
     /*Truncate the area to the object*/
-    if(!lv_obj_has_flag_any(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE | LV_OBJ_FLAG_SNAPSHOT)) {
+    if(!lv_obj_has_flag_any(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
         lv_area_t obj_coords;
         lv_coord_t ext_size = _lv_obj_get_ext_draw_size(obj);
         lv_area_copy(&obj_coords, &obj->coords);
@@ -879,7 +878,7 @@ bool lv_obj_area_is_visible(const lv_obj_t * obj, lv_area_t * area)
         if(lv_obj_has_flag(par, LV_OBJ_FLAG_HIDDEN)) return false;
 
         /*Truncate to the parent and if no common parts break*/
-        if(!lv_obj_has_flag_any(par, LV_OBJ_FLAG_OVERFLOW_VISIBLE | LV_OBJ_FLAG_SNAPSHOT)) {
+        if(!lv_obj_has_flag_any(par, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
             if(!_lv_area_intersect(area, area, &par->coords)) return false;
         }
 

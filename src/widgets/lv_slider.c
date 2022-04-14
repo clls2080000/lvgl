@@ -300,7 +300,8 @@ static void lv_slider_event(const lv_obj_class_t * class_p, lv_event_t * e)
 
         /*Indic. size is handled by bar*/
         lv_coord_t * s = lv_event_get_param(e);
-        *s  = LV_MAX(*s, knob_size);
+        //        *s  = LV_MAX(*s, knob_size);
+        *s  = LV_MAX(*s, 20);
 
     }
     else if(code == LV_EVENT_KEY) {

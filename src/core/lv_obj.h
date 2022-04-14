@@ -108,7 +108,6 @@ enum {
     LV_OBJ_FLAG_IGNORE_LAYOUT   = (1L << 17), /**< Make the object position-able by the layouts*/
     LV_OBJ_FLAG_FLOATING        = (1L << 18), /**< Do not scroll the object when the parent scrolls and ignore layout*/
     LV_OBJ_FLAG_OVERFLOW_VISIBLE = (1L << 19), /**< Do not clip the children's content to the parent's boundary*/
-    LV_OBJ_FLAG_SNAPSHOT         = (1L << 20), /**< Buffer the widget into a snapshot image. */
 
     LV_OBJ_FLAG_LAYOUT_1        = (1L << 23), /**< Custom flag, free to use by layouts*/
     LV_OBJ_FLAG_LAYOUT_2        = (1L << 24), /**< Custom flag, free to use by layouts*/
@@ -169,8 +168,6 @@ typedef struct {
     lv_scroll_snap_t scroll_snap_y : 2;     /**< Where to align the snappable children vertically*/
     lv_dir_t scroll_dir : 4;                /**< The allowed scroll direction(s)*/
     uint8_t event_dsc_cnt;                  /**< Number of event callbacks stored in `event_dsc` array*/
-    uint8_t snapshot_update_req : 1;
-    lv_img_dsc_t * snapshot;
 } _lv_obj_spec_attr_t;
 
 typedef struct _lv_obj_t {
