@@ -139,7 +139,6 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         lv_area_t clip_coords_for_obj;
         uint32_t buf_size_full;
         uint32_t buf_size_sub;
-        uint32_t buf_size_optimal = 4 * 1024;
         lv_coord_t ext_draw_size = _lv_obj_get_ext_draw_size(obj);
         lv_area_t obj_coords_ext;
         lv_obj_get_coords(obj, &obj_coords_ext);
@@ -153,6 +152,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             if(!_lv_area_intersect(&clip_coords_for_obj, clip_area_ori, &obj_coords_ext)) {
                 return;
             }
+            draw_area = clip_coords_for_obj;
             buf_size_sub = 1024 * 2;
         }
         else {
@@ -163,32 +163,30 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
 
         lv_area_t draw_area_sub;
 
-        buf_size_full = lv_area_get_size(&draw_area) * sizeof(lv_color_t);
+        buf_size_full = lv_area_get_size(&draw_area);
+        if(buf_size_sub > buf_size_full) buf_size_sub = buf_size_full;
+        uint32_t row_cnt = buf_size_sub / lv_area_get_width(&draw_area);
+        draw_area_sub = draw_area;
+        draw_area_sub.y2 = draw_area_sub.y1 + row_cnt - 1;
 
-
-
-
-
-
-        uint8_t * layer_buf = lv_mem_alloc(buf_size_full);
-        lv_memset_ff(layer_buf, buf_size_full);
-        /*Set a new draw_ctx*/
         lv_draw_ctx_t * new_draw_ctx = lv_mem_alloc(disp_refr->driver->draw_ctx_size);
         LV_ASSERT_MALLOC(new_draw_ctx);
         if(new_draw_ctx == NULL) {
             LV_LOG_WARN("Out of memory");
             return;
         }
-        disp_refr->driver->draw_ctx_init(disp_refr->driver, new_draw_ctx);
-        new_draw_ctx->clip_area = &draw_area;
-        new_draw_ctx->buf_area = &draw_area;
-        new_draw_ctx->buf = (void *)layer_buf;
 
-        refr_obj_core(new_draw_ctx, obj);
+        uint8_t * layer_buf = lv_mem_alloc(buf_size_sub * sizeof(lv_color_t));
+
+        /*Set-up a new draw_ctx*/
+        disp_refr->driver->draw_ctx_init(disp_refr->driver, new_draw_ctx);
+        new_draw_ctx->clip_area = &draw_area_sub;
+        new_draw_ctx->buf_area = &draw_area_sub;
+        new_draw_ctx->buf = (void *)layer_buf;
 
         lv_draw_img_dsc_t draw_dsc;
         lv_draw_img_dsc_init(&draw_dsc);
-        draw_dsc.opa = LV_OPA_80;
+        draw_dsc.opa = lv_obj_get_style_opa(obj, 0);
         draw_dsc.angle = lv_obj_get_style_transform_angle(obj, 0);
         draw_dsc.zoom = lv_obj_get_style_transform_zoom(obj, 0);
         draw_dsc.pivot.x = ext_draw_size;
@@ -198,19 +196,24 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         img.data = layer_buf;
         img.header.always_zero = 0;
         img.header.w = lv_area_get_width(&draw_area);
-        img.header.h = lv_area_get_height(&draw_area);
         img.header.cf = LV_IMG_CF_TRUE_COLOR;
 
-        lv_img_cache_invalidate_src(&img);
+        while(draw_area_sub.y1 <= draw_area.y2) {
+            lv_memset_ff(layer_buf, buf_size_sub * sizeof(lv_color_t));
+            refr_obj_core(new_draw_ctx, obj);
 
-        lv_draw_img(draw_ctx, &draw_dsc, &draw_area, &img);
+            lv_img_cache_invalidate_src(&img);
+            img.header.h = lv_area_get_height(&draw_area_sub);
+            lv_draw_img(draw_ctx, &draw_dsc, &draw_area_sub, &img);
+
+            draw_area_sub.y1 += row_cnt;
+            draw_area_sub.y2 += row_cnt;
+            if(draw_area_sub.y2 > draw_area.y2) draw_area_sub.y2 = draw_area.y2;
+        }
 
         disp_refr->driver->draw_ctx_deinit(disp_refr->driver, new_draw_ctx);
         lv_mem_free(layer_buf);
     }
-
-
-
 }
 
 

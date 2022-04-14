@@ -22,7 +22,7 @@ void lv_example_slider_1(void)
 //    lv_obj_set_pos(cont, 400, 100);
 
     /*Create a slider in the center of the display*/
-    lv_obj_t * slider = lv_dropdown_create(cont);
+    lv_obj_t * slider = lv_slider_create(cont);
     lv_obj_center(slider);
 //    lv_obj_set_pos(slider, 200, 200);
 //    lv_obj_set_size(slider, 100, 20);
@@ -34,10 +34,11 @@ void lv_example_slider_1(void)
             "n\no\np\nq\nr\ns\nt\nu\nu\nv\v\nw\nx\ny\nz");
 
     lv_obj_set_style_bg_color(cont, lv_color_hex(0xff0000), 0);
-    lv_obj_set_style_opa(cont, 200, 0);
-    lv_obj_set_style_transform_angle(cont, 400, 0);
-    lv_obj_set_style_opa(slider, 250, 0);
-    lv_obj_set_style_transform_angle(slider, 1200, 0);
+    lv_obj_set_style_opa(cont, 250, 0);
+    lv_obj_set_style_shadow_width(cont, 50, 0);
+    lv_obj_set_style_transform_angle(cont, 10, 0);
+//    lv_obj_set_style_opa(slider, 50, 0);
+//    lv_obj_set_style_transform_angle(slider, 200, 0);
 
     lv_anim_t a;
     lv_anim_init(&a);
