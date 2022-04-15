@@ -62,7 +62,7 @@ static void argb_and_rgb_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t sr
                             int32_t x_end, lv_color_t * cbuf, uint8_t * abuf, bool has_alpha);
 
 
-static void transform_point(const lv_img_transform_dsc_t * dsc, int32_t x, int32_t y, int32_t * xs, int32_t * ys);
+static void transform_point_old(const lv_img_transform_dsc_t * dsc, int32_t x, int32_t y, int32_t * xs, int32_t * ys);
 static void _lv_img_buf_transform_init(lv_img_transform_dsc_t * dsc);
 
 /**********************
@@ -77,6 +77,59 @@ static void _lv_img_buf_transform_init(lv_img_transform_dsc_t * dsc);
  *   GLOBAL FUNCTIONS
  **********************/
 
+
+void transform_point_ups(lv_point_t * p, int32_t * xout, int32_t * yout, lv_coord_t angle, lv_coord_t zoom,
+                         lv_point_t * pivot, bool inv)
+{
+    if(inv) {
+        angle = -angle;
+        zoom = (256 * 256) / zoom;
+    }
+
+    if(angle == 0 && zoom == LV_IMG_ZOOM_NONE) {
+        return;
+    }
+
+    p->x -= pivot->x;
+    p->y -= pivot->y;
+
+    p->x = (((int32_t)(p->x) * zoom) >> 8) + pivot->x;
+    p->y = (((int32_t)(p->y) * zoom) >> 8) + pivot->y;
+
+    if(angle == 0) {
+        return;
+    }
+
+    /*div by 10 approximation*/
+
+    int32_t angle_low = angle / 10;
+    int32_t angle_high = angle_low + 1;
+    int32_t angle_rem = angle  - (angle_low * 10);
+
+    int32_t s1 = lv_trigo_sin(angle_low);
+    int32_t s2 = lv_trigo_sin(angle_high);
+
+    int32_t c1 = lv_trigo_sin(angle_low + 90);
+    int32_t c2 = lv_trigo_sin(angle_high + 90);
+
+    int32_t sinma = (s1 * (10 - angle_rem) + s2 * angle_rem) / 10;
+    int32_t cosma = (c1 * (10 - angle_rem) + c2 * angle_rem) / 10;
+    sinma = sinma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+    cosma = cosma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+
+    //    angle = ((angle * 205) + 102) >> 11;
+    //
+    //    /*Use smaller value to avoid overflow*/
+    //    int32_t sinma = lv_trigo_sin(angle) >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+    //    int32_t cosma = lv_trigo_cos(angle) >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+
+    lv_coord_t xt = p->x - pivot->x;
+    lv_coord_t yt = p->y - pivot->y;
+
+    *xout = ((cosma * xt - sinma * yt) >> 2) + pivot->x * 256;
+    *yout = ((sinma * xt + cosma * yt) >> 2) + pivot->y * 256;
+
+}
 
 void lv_draw_sw_transform(lv_draw_ctx_t * draw_ctx, const lv_area_t * dest_area, const void * src_buf,
                           lv_coord_t src_w, lv_coord_t src_h, lv_coord_t src_stride,
@@ -101,13 +154,25 @@ void lv_draw_sw_transform(lv_draw_ctx_t * draw_ctx, const lv_area_t * dest_area,
     bool has_alpha = lv_img_cf_has_alpha(cf);
     for(y = 0; y < dest_h; y++) {
         int32_t xs1_ups, ys1_ups, xs2_ups, ys2_ups;
-        transform_point(&trans_dsc, dest_area->x1, dest_area->y1 + y, &xs1_ups, &ys1_ups);
-        transform_point(&trans_dsc, dest_area->x2, dest_area->y1 + y, &xs2_ups, &ys2_ups);
 
-        int32_t xs_step = (xs2_ups - xs1_ups) / dest_w;
-        int32_t ys_step = (ys2_ups - ys1_ups) / dest_w;
-        int32_t xs_ups = xs1_ups + xs_step / 2;     /*Init. + go the center of the pixel*/
-        int32_t ys_ups = ys1_ups + ys_step / 2;
+        lv_point_t p, pivot = {trans_dsc.cfg.pivot_x, trans_dsc.cfg.pivot_y};
+        transform_point_old(&trans_dsc, dest_area->x1, dest_area->y1 + y, &xs1_ups, &ys1_ups);
+        transform_point_old(&trans_dsc, dest_area->x2, dest_area->y1 + y, &xs2_ups, &ys2_ups);
+
+        p.x = dest_area->x1;
+        p.y = dest_area->y1 + y;
+        transform_point_ups(&p, &xs1_ups, &ys1_ups, trans_dsc.cfg.angle, trans_dsc.cfg.zoom, &pivot, true);
+
+        p.x = dest_area->x2;
+        p.y = dest_area->y1 + y;
+        transform_point_ups(&p, &xs2_ups, &ys2_ups, trans_dsc.cfg.angle, trans_dsc.cfg.zoom, &pivot, true);
+
+        int32_t xs_diff = xs2_ups - xs1_ups;
+        int32_t ys_diff = ys2_ups - ys1_ups;
+        int32_t xs_step = (256 * xs_diff) / (dest_w - 1);
+        int32_t ys_step = (256 * ys_diff) / (dest_w - 1);
+        int32_t xs_ups = xs1_ups + 1 * xs_step / 2 / 256;     /*Init. + go the center of the pixel*/
+        int32_t ys_ups = ys1_ups + 1 * ys_step / 2 / 256;
 
         if(draw_dsc->antialias == 0) {
             if(cf == LV_IMG_CF_RGBA) {
@@ -193,18 +258,21 @@ static void argb_and_rgb_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t sr
                             int32_t x_end, lv_color_t * cbuf, uint8_t * abuf, bool has_alpha)
 {
 
+    int32_t xs_ups_start = xs_ups;
+    int32_t ys_ups_start = ys_ups;
     const int32_t px_size = has_alpha ? LV_IMG_PX_SIZE_ALPHA_BYTE : sizeof(lv_color_t);
 
     lv_coord_t x;
     for(x = 0; x < x_end; x++) {
+        xs_ups = xs_ups_start + ((xs_step * x) >> 8);
+        ys_ups = ys_ups_start + ((ys_step * x) >> 8);
+
         int32_t xs_int = xs_ups >> 8;
         int32_t ys_int = ys_ups >> 8;
 
         /*Fully out of the image*/
         if(xs_int < 0 || xs_int >= src_w || ys_int < 0 || ys_int >= src_h) {
             abuf[x] = 0x00;
-            ys_ups += ys_step;
-            xs_ups += xs_step;
             continue;
         }
 
@@ -306,9 +374,6 @@ static void argb_and_rgb_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t sr
                 abuf[x] = 0x00;
             }
         }
-
-        xs_ups += xs_step;
-        ys_ups += ys_step;
     }
 }
 
@@ -349,7 +414,7 @@ static void _lv_img_buf_transform_init(lv_img_transform_dsc_t * dsc)
 }
 
 
-static void transform_point(const lv_img_transform_dsc_t * dsc, int32_t x, int32_t y, int32_t * xs, int32_t * ys)
+static void transform_point_old(const lv_img_transform_dsc_t * dsc, int32_t x, int32_t y, int32_t * xs, int32_t * ys)
 {
     /*Get the target point relative coordinates to the pivot*/
     int32_t xt = x - dsc->cfg.pivot_x;

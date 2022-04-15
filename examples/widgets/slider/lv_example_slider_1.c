@@ -36,7 +36,7 @@ void lv_example_slider_1(void)
     lv_obj_set_flex_flow(cont2, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_style_pad_row(cont2, 30, 0);
     lv_obj_set_style_pad_column(cont2, 15, 0);
-    lv_obj_set_style_opa(cont2, 150, 0);
+//    lv_obj_set_style_opa(cont2, 150, 0);
     static const char * cont2_name = "Cont2";
     lv_obj_set_user_data(cont2, cont2_name);
 
