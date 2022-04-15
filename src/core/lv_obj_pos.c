@@ -796,6 +796,36 @@ void lv_obj_move_children_by(lv_obj_t * obj, lv_coord_t x_diff, lv_coord_t y_dif
 
 void transform_point_recursive(lv_obj_t * obj, lv_point_t * p, bool inv);
 
+void lv_obj_get_transformed_area(const lv_obj_t * obj, const lv_area_t * area_in, lv_area_t * area_out, bool recursive,
+                                 bool inv)
+{
+    lv_point_t p[4] = {
+        {area_in->x1, area_in->y1},
+        {area_in->x1, area_in->y2},
+        {area_in->x2, area_in->y1},
+        {area_in->x2, area_in->y2},
+    };
+    if(recursive) {
+        transform_point_recursive(obj, &p[0], inv);
+        transform_point_recursive(obj, &p[1], inv);
+        transform_point_recursive(obj, &p[2], inv);
+        transform_point_recursive(obj, &p[3], inv);
+    }
+    else {
+        transform_obj_point(obj, &p[0], inv);
+        transform_obj_point(obj, &p[1], inv);
+        transform_obj_point(obj, &p[2], inv);
+        transform_obj_point(obj, &p[3], inv);
+    }
+    area_out->x1 = LV_MIN4(p[0].x, p[1].x, p[2].x, p[3].x);
+    area_out->x2 = LV_MAX4(p[0].x, p[1].x, p[2].x, p[3].x);
+    area_out->y1 = LV_MIN4(p[0].y, p[1].y, p[2].y, p[3].y);
+    area_out->y2 = LV_MAX4(p[0].y, p[1].y, p[2].y, p[3].y);
+
+
+    lv_area_increase(area_out, 5, 5);
+}
+
 void lv_obj_invalidate_area(const lv_obj_t * obj, const lv_area_t * area)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
@@ -804,20 +834,8 @@ void lv_obj_invalidate_area(const lv_obj_t * obj, const lv_area_t * area)
     lv_area_copy(&area_tmp, area);
     if(!lv_obj_area_is_visible(obj, &area_tmp)) return;
 
-    lv_point_t p[4] = {
-        {area_tmp.x1, area_tmp.y1},
-        {area_tmp.x1, area_tmp.y2},
-        {area_tmp.x2, area_tmp.y1},
-        {area_tmp.x2, area_tmp.y2},
-    };
-    transform_point_recursive(obj, &p[0], false);
-    transform_point_recursive(obj, &p[1], false);
-    transform_point_recursive(obj, &p[2], false);
-    transform_point_recursive(obj, &p[3], false);
-    area_tmp.x1 = LV_MIN4(p[0].x, p[1].x, p[2].x, p[3].x);
-    area_tmp.x2 = LV_MAX4(p[0].x, p[1].x, p[2].x, p[3].x);
-    area_tmp.y1 = LV_MIN4(p[0].y, p[1].y, p[2].y, p[3].y);
-    area_tmp.y2 = LV_MAX4(p[0].y, p[1].y, p[2].y, p[3].y);
+
+    lv_obj_get_transformed_area(obj, &area_tmp, &area_tmp, true, false);
     lv_obj_t * parent = lv_obj_get_parent(obj);
     if(parent) {
         //        if(!lv_obj_area_is_visible(parent, &area_tmp)) return;

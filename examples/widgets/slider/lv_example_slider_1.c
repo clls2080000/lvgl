@@ -19,25 +19,35 @@ void lv_example_slider_1(void)
 	lv_obj_t * cont = lv_obj_create(lv_scr_act());
     lv_obj_set_style_bg_color(cont, lv_color_hex(0xff0000), 0);
     lv_obj_set_style_opa(cont, 200, 0);
-    lv_obj_set_style_shadow_width(cont, 50, 0);
-    lv_obj_set_style_transform_angle(cont, 100, 0);
+//    lv_obj_set_style_shadow_width(cont, 50, 0);
+    lv_obj_set_style_transform_angle(cont, -276, 0);
+//    lv_obj_set_style_transform_zoom(cont, 256*3, 0);
     lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_style_pad_row(cont, 30, 0);
     lv_obj_set_style_pad_left(cont, 50, 0);
 	lv_obj_set_size(cont, 400, 400);
-    lv_obj_center(cont);
+    lv_obj_align(cont, LV_ALIGN_CENTER, 0, -50);
+    static const char * cont_name = "Cont";
+    lv_obj_set_user_data(cont, cont_name);
+//    return;
 
     lv_obj_t * cont2 = lv_obj_create(cont);
     lv_obj_set_size(cont2, lv_pct(100), 200);
     lv_obj_set_flex_flow(cont2, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_style_pad_row(cont2, 30, 0);
-    lv_obj_set_style_pad_column(cont2, 30, 0);
+    lv_obj_set_style_pad_column(cont2, 15, 0);
     lv_obj_set_style_opa(cont2, 150, 0);
+    static const char * cont2_name = "Cont2";
+    lv_obj_set_user_data(cont2, cont2_name);
 
     uint32_t i;
     for(i = 0; i < 36; i++) {
         lv_obj_t * sw = lv_switch_create(cont2);
-        lv_obj_set_style_transform_angle(sw, 100 * i, 0);
+//        lv_obj_set_style_transform_angle(sw, 100 * i, 0);
+
+        char * name = lv_mem_alloc(32);
+        lv_snprintf(name, 32, "Switch %d", i);
+        lv_obj_set_user_data(sw, name);
     }
 
     /*Create a slider in the center of the display*/
@@ -46,16 +56,25 @@ void lv_example_slider_1(void)
     lv_obj_t * slider3 = lv_slider_create(cont);
     lv_obj_t * slider4 = lv_slider_create(cont);
 
-    lv_obj_set_style_transform_angle(slider2, 200, 0);
-    lv_obj_set_style_transform_zoom(slider3, 128, 0);
-    lv_obj_set_style_transform_angle(slider4, 200, 0);
-    lv_obj_set_style_transform_zoom(slider4, 128, 0);
+//    lv_obj_set_style_transform_angle(slider2, 200, 0);
+//    lv_obj_set_style_transform_zoom(slider3, 128, 0);
+//    lv_obj_set_style_transform_angle(slider4, 200, 0);
+//    lv_obj_set_style_transform_zoom(slider4, 128, 0);
+
+    static const char * slider1_name = "Slider1";
+    lv_obj_set_user_data(slider1, slider1_name);
+    static const char * slider2_name = "Slider2";
+    lv_obj_set_user_data(slider2, slider2_name);
+    static const char * slider3_name = "Slider3";
+    lv_obj_set_user_data(slider3, slider3_name);
+    static const char * slider4_name = "Slider4";
+    lv_obj_set_user_data(slider4, slider4_name);
 
     label = lv_label_create(cont);
     lv_obj_set_x(label, -20);
     lv_obj_add_flag(label, LV_OBJ_FLAG_IGNORE_LAYOUT);
     lv_label_set_text(label,"abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-    lv_obj_set_style_transform_angle(label, 900, 0);
+//    lv_obj_set_style_transform_angle(label, 900, 0);
 
     lv_anim_t a;
     lv_anim_init(&a);

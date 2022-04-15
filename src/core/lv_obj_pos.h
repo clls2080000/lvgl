@@ -348,6 +348,9 @@ void lv_obj_move_to(struct _lv_obj_t * obj, lv_coord_t x, lv_coord_t y);
 
 void lv_obj_move_children_by(struct _lv_obj_t * obj, lv_coord_t x_diff, lv_coord_t y_diff, bool ignore_floating);
 
+void lv_obj_get_transformed_area(const struct _lv_obj_t * obj, const lv_area_t * area_in, lv_area_t * area_out,
+                                 bool recursive, bool inv);
+
 /**
  * Mark an area of an object as invalid.
  * The area will be truncated to the object's area and marked for redraw.
