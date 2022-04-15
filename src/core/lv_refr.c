@@ -466,6 +466,7 @@ void _lv_disp_refr_timer(lv_timer_t * tmr)
         disp_refr->inv_p = 0;
 
         elaps = lv_tick_elaps(start);
+
         /*Call monitor cb if present*/
         if(disp_refr->driver->monitor_cb) {
             disp_refr->driver->monitor_cb(disp_refr->driver, elaps, px_num);

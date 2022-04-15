@@ -175,75 +175,87 @@ void lv_canvas_transform(lv_obj_t * obj, lv_img_dsc_t * img, int16_t angle, uint
     int32_t y;
     bool ret;
 
-    lv_img_transform_dsc_t dsc;
-    dsc.cfg.angle = angle;
-    dsc.cfg.zoom = zoom;
-    dsc.cfg.src = img->data;
-    dsc.cfg.src_w = img->header.w;
-    dsc.cfg.src_h = img->header.h;
-    dsc.cfg.cf = img->header.cf;
-    dsc.cfg.pivot_x = pivot_x;
-    dsc.cfg.pivot_y = pivot_y;
-    dsc.cfg.color = color;
-    dsc.cfg.antialias = antialias;
-    _lv_img_buf_transform_init(&dsc);
 
-    for(y = -offset_y; y < dest_height - offset_y; y++) {
-        for(x = -offset_x; x < dest_width - offset_x; x++) {
+    lv_draw_img_dsc_t draw_dsc;
+    lv_draw_img_dsc_init(&draw_dsc);
+    draw_dsc.angle = angle;
+    draw_dsc.zoom = zoom;
+    draw_dsc.pivot.x = pivot_x;
+    draw_dsc.pivot.y = pivot_y;
 
-            ret = _lv_img_buf_transform(&dsc, x, y);
-
-            if(ret == false) continue;
-
-            if(x + offset_x >= 0 && x + offset_x < dest_width && y + offset_y >= 0 && y + offset_y < dest_height) {
-                /*If the image has no alpha channel just simple set the result color on the canvas*/
-                if(lv_img_cf_has_alpha(img->header.cf) == false) {
-                    lv_img_buf_set_px_color(&canvas->dsc, x + offset_x, y + offset_y, dsc.res.color);
-                }
-                else {
-                    lv_color_t bg_color = lv_img_buf_get_px_color(&canvas->dsc, x + offset_x, y + offset_y, dsc.cfg.color);
-
-                    /*If the canvas has no alpha but the image has mix the image's color with
-                     * canvas*/
-                    if(lv_img_cf_has_alpha(canvas->dsc.header.cf) == false) {
-                        if(dsc.res.opa < LV_OPA_MAX) dsc.res.color = lv_color_mix(dsc.res.color, bg_color, dsc.res.opa);
-                        lv_img_buf_set_px_color(&canvas->dsc, x + offset_x, y + offset_y, dsc.res.color);
-                    }
-                    /*Both the image and canvas has alpha channel. Some extra calculation is
-                       required*/
-                    else {
-                        lv_opa_t bg_opa = lv_img_buf_get_px_alpha(&canvas->dsc, x + offset_x, y + offset_y);
-                        /*Pick the foreground if it's fully opaque or the Background is fully
-                         *transparent*/
-                        if(dsc.res.opa >= LV_OPA_MAX || bg_opa <= LV_OPA_MIN) {
-                            lv_img_buf_set_px_color(&canvas->dsc, x + offset_x, y + offset_y, dsc.res.color);
-                            lv_img_buf_set_px_alpha(&canvas->dsc, x + offset_x, y + offset_y, dsc.res.opa);
-                        }
-                        /*Opaque background: use simple mix*/
-                        else if(bg_opa >= LV_OPA_MAX) {
-                            lv_img_buf_set_px_color(&canvas->dsc, x + offset_x, y + offset_y,
-                                                    lv_color_mix(dsc.res.color, bg_color, dsc.res.opa));
-                        }
-                        /*Both colors have alpha. Expensive calculation need to be applied*/
-                        else {
-
-                            /*Info:
-                             * https://en.wikipedia.org/wiki/Alpha_compositing#Analytical_derivation_of_the_over_operator*/
-                            lv_opa_t opa_res_2 = 255 - ((uint16_t)((uint16_t)(255 - dsc.res.opa) * (255 - bg_opa)) >> 8);
-                            if(opa_res_2 == 0) {
-                                opa_res_2 = 1; /*never happens, just to be sure*/
-                            }
-                            lv_opa_t ratio = (uint16_t)((uint16_t)dsc.res.opa * 255) / opa_res_2;
-
-                            lv_img_buf_set_px_color(&canvas->dsc, x + offset_x, y + offset_y,
-                                                    lv_color_mix(dsc.res.color, bg_color, ratio));
-                            lv_img_buf_set_px_alpha(&canvas->dsc, x + offset_x, y + offset_y, opa_res_2);
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // TODO
+    //    lv_draw_sw_transform(dest_area, img->data, img->header.w, img->header.h, img->header.w,
+    //          &draw_dsc, img, cbuf, abuf)
+    //
+    //    lv_img_transform_dsc_t dsc;
+    //    dsc.cfg.angle = angle;
+    //    dsc.cfg.zoom = zoom;
+    //    dsc.cfg.src = img->data;
+    //    dsc.cfg.src_w = img->header.w;
+    //    dsc.cfg.src_h = img->header.h;
+    //    dsc.cfg.cf = img->header.cf;
+    //    dsc.cfg.pivot_x = pivot_x;
+    //    dsc.cfg.pivot_y = pivot_y;
+    //    dsc.cfg.color = color;
+    //    dsc.cfg.antialias = antialias;
+    //    _lv_img_buf_transform_init(&dsc);
+    //
+    //    for(y = -offset_y; y < dest_height - offset_y; y++) {
+    //        for(x = -offset_x; x < dest_width - offset_x; x++) {
+    //
+    //            ret = _lv_img_buf_transform(&dsc, x, y);
+    //
+    //            if(ret == false) continue;
+    //
+    //            if(x + offset_x >= 0 && x + offset_x < dest_width && y + offset_y >= 0 && y + offset_y < dest_height) {
+    //                /*If the image has no alpha channel just simple set the result color on the canvas*/
+    //                if(lv_img_cf_has_alpha(img->header.cf) == false) {
+    //                    lv_img_buf_set_px_color(&canvas->dsc, x + offset_x, y + offset_y, dsc.res.color);
+    //                }
+    //                else {
+    //                    lv_color_t bg_color = lv_img_buf_get_px_color(&canvas->dsc, x + offset_x, y + offset_y, dsc.cfg.color);
+    //
+    //                    /*If the canvas has no alpha but the image has mix the image's color with
+    //                     * canvas*/
+    //                    if(lv_img_cf_has_alpha(canvas->dsc.header.cf) == false) {
+    //                        if(dsc.res.opa < LV_OPA_MAX) dsc.res.color = lv_color_mix(dsc.res.color, bg_color, dsc.res.opa);
+    //                        lv_img_buf_set_px_color(&canvas->dsc, x + offset_x, y + offset_y, dsc.res.color);
+    //                    }
+    //                    /*Both the image and canvas has alpha channel. Some extra calculation is
+    //                       required*/
+    //                    else {
+    //                        lv_opa_t bg_opa = lv_img_buf_get_px_alpha(&canvas->dsc, x + offset_x, y + offset_y);
+    //                        /*Pick the foreground if it's fully opaque or the Background is fully
+    //                         *transparent*/
+    //                        if(dsc.res.opa >= LV_OPA_MAX || bg_opa <= LV_OPA_MIN) {
+    //                            lv_img_buf_set_px_color(&canvas->dsc, x + offset_x, y + offset_y, dsc.res.color);
+    //                            lv_img_buf_set_px_alpha(&canvas->dsc, x + offset_x, y + offset_y, dsc.res.opa);
+    //                        }
+    //                        /*Opaque background: use simple mix*/
+    //                        else if(bg_opa >= LV_OPA_MAX) {
+    //                            lv_img_buf_set_px_color(&canvas->dsc, x + offset_x, y + offset_y,
+    //                                                    lv_color_mix(dsc.res.color, bg_color, dsc.res.opa));
+    //                        }
+    //                        /*Both colors have alpha. Expensive calculation need to be applied*/
+    //                        else {
+    //
+    //                            /*Info:
+    //                             * https://en.wikipedia.org/wiki/Alpha_compositing#Analytical_derivation_of_the_over_operator*/
+    //                            lv_opa_t opa_res_2 = 255 - ((uint16_t)((uint16_t)(255 - dsc.res.opa) * (255 - bg_opa)) >> 8);
+    //                            if(opa_res_2 == 0) {
+    //                                opa_res_2 = 1; /*never happens, just to be sure*/
+    //                            }
+    //                            lv_opa_t ratio = (uint16_t)((uint16_t)dsc.res.opa * 255) / opa_res_2;
+    //
+    //                            lv_img_buf_set_px_color(&canvas->dsc, x + offset_x, y + offset_y,
+    //                                                    lv_color_mix(dsc.res.color, bg_color, ratio));
+    //                            lv_img_buf_set_px_alpha(&canvas->dsc, x + offset_x, y + offset_y, opa_res_2);
+    //                        }
+    //                    }
+    //                }
+    //            }
+    //        }
+    //    }
 
     lv_obj_invalidate(obj);
 #else
@@ -527,12 +539,12 @@ void lv_canvas_fill_bg(lv_obj_t * canvas, lv_color_t color, lv_opa_t opa)
 
     lv_img_dsc_t * dsc = lv_canvas_get_img(canvas);
 
-    if(dsc->header.cf == LV_IMG_CF_INDEXED_1BIT) {
+    if(dsc->header.cf == LV_IMG_CF_I1) {
         uint32_t row_byte_cnt = (dsc->header.w + 7) >> 3;
         /*+8 skip the palette*/
         lv_memset((uint8_t *)dsc->data + 8, color.full ? 0xff : 0x00, row_byte_cnt * dsc->header.h);
     }
-    else if(dsc->header.cf == LV_IMG_CF_ALPHA_1BIT) {
+    else if(dsc->header.cf == LV_IMG_CF_A1) {
         uint32_t row_byte_cnt = (dsc->header.w + 7) >> 3;
         lv_memset((uint8_t *)dsc->data, opa > LV_OPA_50 ? 0xff : 0x00, row_byte_cnt * dsc->header.h);
     }
@@ -557,7 +569,7 @@ void lv_canvas_draw_rect(lv_obj_t * canvas, lv_coord_t x, lv_coord_t y, lv_coord
 
     lv_img_dsc_t * dsc = lv_canvas_get_img(canvas);
 
-    if(dsc->header.cf >= LV_IMG_CF_INDEXED_1BIT && dsc->header.cf <= LV_IMG_CF_INDEXED_8BIT) {
+    if(dsc->header.cf >= LV_IMG_CF_I1 && dsc->header.cf <= LV_IMG_CF_I8) {
         LV_LOG_WARN("lv_canvas_draw_rect: can't draw to LV_IMG_CF_INDEXED canvas");
         return;
     }
@@ -574,7 +586,7 @@ void lv_canvas_draw_rect(lv_obj_t * canvas, lv_coord_t x, lv_coord_t y, lv_coord
 
     /*Disable anti-aliasing if drawing with transparent color to chroma keyed canvas*/
     lv_color_t ctransp = LV_COLOR_CHROMA_KEY;
-    if(dsc->header.cf == LV_IMG_CF_TRUE_COLOR_CHROMA_KEYED &&
+    if(dsc->header.cf == LV_IMG_CF_RGB_CHK &&
        draw_dsc->bg_color.full == ctransp.full) {
         fake_disp.driver->antialiasing = 0;
     }
@@ -601,7 +613,7 @@ void lv_canvas_draw_text(lv_obj_t * canvas, lv_coord_t x, lv_coord_t y, lv_coord
 
     lv_img_dsc_t * dsc = lv_canvas_get_img(canvas);
 
-    if(dsc->header.cf >= LV_IMG_CF_INDEXED_1BIT && dsc->header.cf <= LV_IMG_CF_INDEXED_8BIT) {
+    if(dsc->header.cf >= LV_IMG_CF_I1 && dsc->header.cf <= LV_IMG_CF_I8) {
         LV_LOG_WARN("lv_canvas_draw_text: can't draw to LV_IMG_CF_INDEXED canvas");
         return;
     }
@@ -637,7 +649,7 @@ void lv_canvas_draw_img(lv_obj_t * canvas, lv_coord_t x, lv_coord_t y, const voi
 
     lv_img_dsc_t * dsc = lv_canvas_get_img(canvas);
 
-    if(dsc->header.cf >= LV_IMG_CF_INDEXED_1BIT && dsc->header.cf <= LV_IMG_CF_INDEXED_8BIT) {
+    if(dsc->header.cf >= LV_IMG_CF_I1 && dsc->header.cf <= LV_IMG_CF_I8) {
         LV_LOG_WARN("lv_canvas_draw_img: can't draw to LV_IMG_CF_INDEXED canvas");
         return;
     }
@@ -680,7 +692,7 @@ void lv_canvas_draw_line(lv_obj_t * canvas, const lv_point_t points[], uint32_t 
 
     lv_img_dsc_t * dsc = lv_canvas_get_img(canvas);
 
-    if(dsc->header.cf >= LV_IMG_CF_INDEXED_1BIT && dsc->header.cf <= LV_IMG_CF_INDEXED_8BIT) {
+    if(dsc->header.cf >= LV_IMG_CF_I1 && dsc->header.cf <= LV_IMG_CF_I8) {
         LV_LOG_WARN("lv_canvas_draw_line: can't draw to LV_IMG_CF_INDEXED canvas");
         return;
     }
@@ -698,7 +710,7 @@ void lv_canvas_draw_line(lv_obj_t * canvas, const lv_point_t points[], uint32_t 
 
     /*Disable anti-aliasing if drawing with transparent color to chroma keyed canvas*/
     lv_color_t ctransp = LV_COLOR_CHROMA_KEY;
-    if(dsc->header.cf == LV_IMG_CF_TRUE_COLOR_CHROMA_KEYED &&
+    if(dsc->header.cf == LV_IMG_CF_RGB_CHK &&
        draw_dsc->color.full == ctransp.full) {
         fake_disp.driver->antialiasing = 0;
     }
@@ -722,7 +734,7 @@ void lv_canvas_draw_polygon(lv_obj_t * canvas, const lv_point_t points[], uint32
 
     lv_img_dsc_t * dsc = lv_canvas_get_img(canvas);
 
-    if(dsc->header.cf >= LV_IMG_CF_INDEXED_1BIT && dsc->header.cf <= LV_IMG_CF_INDEXED_8BIT) {
+    if(dsc->header.cf >= LV_IMG_CF_I1 && dsc->header.cf <= LV_IMG_CF_I8) {
         LV_LOG_WARN("lv_canvas_draw_polygon: can't draw to LV_IMG_CF_INDEXED canvas");
         return;
     }
@@ -739,7 +751,7 @@ void lv_canvas_draw_polygon(lv_obj_t * canvas, const lv_point_t points[], uint32
 
     /*Disable anti-aliasing if drawing with transparent color to chroma keyed canvas*/
     lv_color_t ctransp = LV_COLOR_CHROMA_KEY;
-    if(dsc->header.cf == LV_IMG_CF_TRUE_COLOR_CHROMA_KEYED &&
+    if(dsc->header.cf == LV_IMG_CF_RGB_CHK &&
        draw_dsc->bg_color.full == ctransp.full) {
         fake_disp.driver->antialiasing = 0;
     }
@@ -761,7 +773,7 @@ void lv_canvas_draw_arc(lv_obj_t * canvas, lv_coord_t x, lv_coord_t y, lv_coord_
 
     lv_img_dsc_t * dsc = lv_canvas_get_img(canvas);
 
-    if(dsc->header.cf >= LV_IMG_CF_INDEXED_1BIT && dsc->header.cf <= LV_IMG_CF_INDEXED_8BIT) {
+    if(dsc->header.cf >= LV_IMG_CF_I1 && dsc->header.cf <= LV_IMG_CF_I8) {
         LV_LOG_WARN("lv_canvas_draw_arc: can't draw to LV_IMG_CF_INDEXED canvas");
         return;
     }
@@ -808,7 +820,7 @@ static void lv_canvas_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj
     lv_canvas_t * canvas = (lv_canvas_t *)obj;
 
     canvas->dsc.header.always_zero = 0;
-    canvas->dsc.header.cf          = LV_IMG_CF_TRUE_COLOR;
+    canvas->dsc.header.cf          = LV_IMG_CF_RGB;
     canvas->dsc.header.h           = 0;
     canvas->dsc.header.w           = 0;
     canvas->dsc.data_size          = 0;
