@@ -151,13 +151,14 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
                 return;
             }
 
-            lv_obj_get_transformed_area(obj, &clip_coords_for_obj, &clip_coords_for_obj, false, true);
-            if(!_lv_area_intersect(&clip_coords_for_obj, &clip_coords_for_obj, &obj_coords_ext)) {
+            lv_area_t inverse_clip_coords_for_obj;
+            lv_obj_get_transformed_area(obj, &clip_coords_for_obj, &inverse_clip_coords_for_obj, false, true);
+            if(!_lv_area_intersect(&inverse_clip_coords_for_obj, &inverse_clip_coords_for_obj, &obj_coords_ext)) {
                 return;
             }
 
-            draw_area = clip_coords_for_obj; //obj_coords_ext;
-            //            buf_size_sub = lv_area_get_size(&draw_area) * sizeof(lv_color_t);
+            draw_area = inverse_clip_coords_for_obj; //obj_coords_ext;
+            buf_size_sub = lv_area_get_size(&draw_area);
         }
         else if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE) {
             lv_area_t clip_coords_for_obj;
@@ -165,6 +166,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
                 return;
             }
             draw_area = clip_coords_for_obj;
+            buf_size_sub = 1024 * 10;
             //            buf_size_sub = lv_area_get_size(&draw_area) * sizeof(lv_color_t);
         }
         else {
@@ -172,14 +174,17 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             return;
         }
 
-        buf_size_sub = 1024 * 10;
+
+        const char * name = lv_obj_get_user_data(obj);
+        printf("Create layer for: %s\n", name ? name : "?");
+
+
         lv_area_t draw_area_sub;
 
-        buf_size_full = lv_area_get_size(&draw_area) + lv_area_get_width(&draw_area) * 2;   /*+2 row*/
+        buf_size_full = lv_area_get_size(&draw_area);
         if(buf_size_sub > buf_size_full) buf_size_sub = buf_size_full;
 
         int32_t row_cnt = buf_size_sub / lv_area_get_width(&draw_area);
-        row_cnt--;
 
         draw_area_sub = draw_area;
         draw_area_sub.y1 -= 1;
@@ -193,6 +198,8 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         }
 
         uint8_t * layer_buf = lv_mem_alloc(buf_size_sub * sizeof(lv_color_t));
+        printf("buf_size: %d (%s)\n", buf_size_sub, inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE ? "simple" : "transf");
+
 
         /*Set-up a new draw_ctx*/
         disp_refr->driver->draw_ctx_init(disp_refr->driver, new_draw_ctx);
@@ -215,11 +222,16 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         while(draw_area_sub.y1 <= draw_area.y2) {
             draw_dsc.pivot.x = obj->coords.x1 - draw_area_sub.x1;
             draw_dsc.pivot.y = obj->coords.y1 - draw_area_sub.y1;
+            draw_dsc.recolor = lv_color_make(lv_rand(0, 0xFF), lv_rand(0, 0xFF), lv_rand(0, 0xFF));
+            //            draw_dsc.recolor_opa = LV_OPA_50;
             lv_memset_ff(layer_buf, buf_size_sub * sizeof(lv_color_t));
             refr_obj_core(new_draw_ctx, obj);
 
             lv_img_cache_invalidate_src(&img);
+
             img.header.h = lv_area_get_height(&draw_area_sub);
+            const char * name = lv_obj_get_user_data(obj);
+            printf("Blend: %s\n", name ? name : "?");
             lv_draw_img(draw_ctx, &draw_dsc, &draw_area_sub, &img);
 
             draw_area_sub.y1 += row_cnt;
@@ -272,7 +284,7 @@ void refr_obj_core(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         draw_dsc.border_width = 1;
         draw_dsc.border_opa = LV_OPA_30;
         draw_dsc.border_color = debug_color;
-        //        lv_draw_rect(draw_ctx, &draw_dsc, &obj_coords_ext);
+        lv_draw_rect(draw_ctx, &draw_dsc, &obj_coords_ext);
 #endif
     }
 
