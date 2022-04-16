@@ -61,7 +61,7 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_c
     blend_dsc.blend_area = &blend_area;
 
     /*The simplest case just copy the pixels into the draw_buf*/
-    if(!mask_any && !transform && cf == LV_IMG_CF_RGB && draw_dsc->recolor_opa == LV_OPA_TRANSP) {
+    if(!mask_any && !transform && cf == LV_IMG_CF_TRUE_COLOR && draw_dsc->recolor_opa == LV_OPA_TRANSP) {
         blend_dsc.src_buf = (const lv_color_t *)src_buf;
 
         blend_dsc.blend_area = coords;
@@ -105,7 +105,8 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_c
 
         bool transform = draw_dsc->angle != 0 || draw_dsc->zoom != LV_IMG_ZOOM_NONE ? true : false;
 
-        lv_draw_mask_res_t mask_res_def = (cf != LV_IMG_CF_RGB || draw_dsc->angle || draw_dsc->zoom != LV_IMG_ZOOM_NONE) ?
+        lv_draw_mask_res_t mask_res_def = (cf != LV_IMG_CF_TRUE_COLOR || draw_dsc->angle ||
+                                           draw_dsc->zoom != LV_IMG_ZOOM_NONE) ?
                                           LV_DRAW_MASK_RES_CHANGED : LV_DRAW_MASK_RES_FULL_COVER;
         blend_dsc.mask_res = mask_res_def;
 
@@ -180,7 +181,7 @@ static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coo
     lv_coord_t y;
     lv_coord_t x;
 
-    if(cf == LV_IMG_CF_RGB || cf == LV_IMG_CF_RGB_CHK) {
+    if(cf == LV_IMG_CF_TRUE_COLOR || cf == LV_IMG_CF_TRUE_COLOR_CHROMA_KEYED) {
         uint32_t px_cnt = lv_area_get_size(dest_area);
         lv_memset_ff(abuf, px_cnt);
 
@@ -197,7 +198,7 @@ static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coo
         }
 
         /*Make "holes" for with Chroma keying*/
-        if(cf == LV_IMG_CF_RGB_CHK) {
+        if(cf == LV_IMG_CF_TRUE_COLOR_CHROMA_KEYED) {
             uint32_t i;
             lv_color_t chk = LV_COLOR_CHROMA_KEY;
 #if LV_COLOR_DEPTH == 8
@@ -215,7 +216,7 @@ static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coo
             }
         }
     }
-    else if(cf == LV_IMG_CF_RGBA) {
+    else if(cf == LV_IMG_CF_TRUE_COLOR_ALPHA) {
         src_tmp8 += (src_stride * dest_area->y1 * LV_IMG_PX_SIZE_ALPHA_BYTE) + dest_area->x1 * LV_IMG_PX_SIZE_ALPHA_BYTE;
 
         lv_coord_t src_new_line_step_px = (src_stride - lv_area_get_width(dest_area));

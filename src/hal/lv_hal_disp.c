@@ -581,19 +581,19 @@ lv_disp_rot_t lv_disp_get_rotation(lv_disp_t * disp)
 void lv_disp_drv_use_generic_set_px_cb(lv_disp_drv_t * disp_drv, lv_img_cf_t cf)
 {
     switch(cf) {
-        case LV_IMG_CF_RGBA:
+        case LV_IMG_CF_TRUE_COLOR_ALPHA:
             disp_drv->set_px_cb = set_px_true_color_alpha;
             break;
-        case LV_IMG_CF_A1:
+        case LV_IMG_CF_ALPHA_1BIT:
             disp_drv->set_px_cb = set_px_cb_alpha1;
             break;
-        case LV_IMG_CF_A2:
+        case LV_IMG_CF_ALPHA_2BIT:
             disp_drv->set_px_cb = set_px_cb_alpha2;
             break;
-        case LV_IMG_CF_A4:
+        case LV_IMG_CF_ALPHA_4BIT:
             disp_drv->set_px_cb = set_px_cb_alpha4;
             break;
-        case LV_IMG_CF_A8:
+        case LV_IMG_CF_ALPHA_8BIT:
             disp_drv->set_px_cb = set_px_cb_alpha8;
             break;
         default:
@@ -621,7 +621,7 @@ static void set_px_cb_alpha1(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t
     lv_img_dsc_t d;
     d.data = buf;
     d.header.w = buf_w;
-    d.header.cf = LV_IMG_CF_A1;
+    d.header.cf = LV_IMG_CF_ALPHA_1BIT;
 
     set_px_alpha_generic(&d, x, y, color, opa);
 }
@@ -635,7 +635,7 @@ static void set_px_cb_alpha2(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t
     lv_img_dsc_t d;
     d.data = buf;
     d.header.w = buf_w;
-    d.header.cf = LV_IMG_CF_A2;
+    d.header.cf = LV_IMG_CF_ALPHA_2BIT;
 
     set_px_alpha_generic(&d, x, y, color, opa);
 }
@@ -649,7 +649,7 @@ static void set_px_cb_alpha4(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t
     lv_img_dsc_t d;
     d.data = buf;
     d.header.w = buf_w;
-    d.header.cf = LV_IMG_CF_A4;
+    d.header.cf = LV_IMG_CF_ALPHA_4BIT;
 
     set_px_alpha_generic(&d, x, y, color, opa);
 }
@@ -663,7 +663,7 @@ static void set_px_cb_alpha8(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t
     lv_img_dsc_t d;
     d.data = buf;
     d.header.w = buf_w;
-    d.header.cf = LV_IMG_CF_A8;
+    d.header.cf = LV_IMG_CF_ALPHA_8BIT;
 
     set_px_alpha_generic(&d, x, y, color, opa);
 }

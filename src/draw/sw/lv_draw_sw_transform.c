@@ -169,13 +169,17 @@ void lv_draw_sw_transform(lv_draw_ctx_t * draw_ctx, const lv_area_t * dest_area,
 
         int32_t xs_diff = xs2_ups - xs1_ups;
         int32_t ys_diff = ys2_ups - ys1_ups;
-        int32_t xs_step = (256 * xs_diff) / (dest_w - 1);
-        int32_t ys_step = (256 * ys_diff) / (dest_w - 1);
+        int32_t xs_step = 0;
+        int32_t ys_step = 0;
+        if(dest_w > 1) {
+            xs_step = (256 * xs_diff) / (dest_w - 1);
+            ys_step = (256 * ys_diff) / (dest_w - 1);
+        }
         int32_t xs_ups = xs1_ups + 1 * xs_step / 2 / 256;     /*Init. + go the center of the pixel*/
         int32_t ys_ups = ys1_ups + 1 * ys_step / 2 / 256;
 
         if(draw_dsc->antialias == 0) {
-            if(cf == LV_IMG_CF_RGBA) {
+            if(cf == LV_IMG_CF_TRUE_COLOR_ALPHA) {
                 argb_no_aa(src_buf, src_w, src_h, src_stride, xs_ups, ys_ups, xs_step, ys_step, dest_w, cbuf, abuf);
             }
             else {
