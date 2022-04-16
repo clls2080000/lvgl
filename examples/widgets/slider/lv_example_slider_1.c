@@ -20,7 +20,7 @@ void lv_example_slider_1(void)
     lv_obj_set_style_bg_color(cont, lv_color_hex(0xff0000), 0);
     lv_obj_set_style_opa(cont, 200, 0);
 //    lv_obj_set_style_shadow_width(cont, 50, 0);
-    lv_obj_set_style_transform_angle(cont, 900, 0);
+    lv_obj_set_style_transform_angle(cont, 500, 0);
 //    lv_obj_set_style_transform_zoom(cont, 256*3, 0);
     lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_style_pad_row(cont, 30, 0);

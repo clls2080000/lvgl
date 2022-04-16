@@ -209,10 +209,12 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         //        printf("buf_size: %d (%s)\n", buf_size_sub, inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE ? "simple" : "transf");
 
         /*Set-up a new draw_ctx*/
-        void (*set_px_cb)(struct _lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
-                          lv_color_t color, lv_opa_t opa);
-        set_px_cb = disp_refr->driver->set_px_cb;
+        void (*old_set_px_cb)(struct _lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
+                              lv_color_t color, lv_opa_t opa);
+        old_set_px_cb = disp_refr->driver->set_px_cb;
         lv_disp_drv_use_generic_set_px_cb(disp_refr->driver, LV_IMG_CF_TRUE_COLOR_ALPHA);
+        void (*new_set_px_cb)(struct _lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
+                              lv_color_t color, lv_opa_t opa) = disp_refr->driver->set_px_cb;
         disp_refr->driver->draw_ctx_init(disp_refr->driver, new_draw_ctx);
         new_draw_ctx->clip_area = &draw_area_sub;
         new_draw_ctx->buf_area = &draw_area_sub;
@@ -233,7 +235,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             draw_dsc.pivot.x = obj->coords.x1 - draw_area_sub.x1;
             draw_dsc.pivot.y = obj->coords.y1 - draw_area_sub.y1;
             draw_dsc.recolor = lv_color_make(lv_rand(0, 0xFF), lv_rand(0, 0xFF), lv_rand(0, 0xFF));
-            //            draw_dsc.recolor_opa = LV_OPA_50;
+            //            draw_dsc.recolor_opa = LV_OPA_50;LV_IMG_PX_SIZE_ALPHA_BYTE
 
             lv_memset_00(layer_buf, buf_size_sub * LV_IMG_PX_SIZE_ALPHA_BYTE);
             refr_obj_core(new_draw_ctx, obj);
@@ -243,7 +245,10 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             img.header.h = lv_area_get_height(&draw_area_sub);
             const char * name = lv_obj_get_user_data(obj);
             //            printf("Blend: %s\n", name ? name : "?");
+
+            disp_refr->driver->set_px_cb = old_set_px_cb;
             lv_draw_img(draw_ctx, &draw_dsc, &draw_area_sub, &img);
+            disp_refr->driver->set_px_cb = new_set_px_cb;
 
             draw_area_sub.y1 += row_cnt;
             draw_area_sub.y2 += row_cnt;
@@ -257,7 +262,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         disp_refr->driver->draw_ctx_deinit(disp_refr->driver, new_draw_ctx);
         lv_mem_free(layer_buf);
         lv_mem_free(new_draw_ctx);
-        disp_refr->driver->set_px_cb = set_px_cb;
+        disp_refr->driver->set_px_cb = old_set_px_cb;
     }
 }
 
