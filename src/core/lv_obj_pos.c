@@ -834,12 +834,6 @@ void lv_obj_invalidate_area(const lv_obj_t * obj, const lv_area_t * area)
     lv_area_copy(&area_tmp, area);
     if(!lv_obj_area_is_visible(obj, &area_tmp)) return;
 
-
-    lv_obj_get_transformed_area(obj, &area_tmp, &area_tmp, true, false);
-    lv_obj_t * parent = lv_obj_get_parent(obj);
-    if(parent) {
-        //        if(!lv_obj_area_is_visible(parent, &area_tmp)) return;
-    }
     _lv_inv_area(lv_obj_get_disp(obj),  &area_tmp);
 }
 
@@ -888,6 +882,9 @@ bool lv_obj_area_is_visible(const lv_obj_t * obj, lv_area_t * area)
         if(!_lv_area_intersect(area, area, &obj_coords)) return false;
     }
 
+    lv_obj_get_transformed_area(obj, area, area, true, false);
+
+
     /*Truncate recursively to the parents*/
     lv_obj_t * par = lv_obj_get_parent(obj);
     while(par != NULL) {
@@ -896,7 +893,9 @@ bool lv_obj_area_is_visible(const lv_obj_t * obj, lv_area_t * area)
 
         /*Truncate to the parent and if no common parts break*/
         if(!lv_obj_has_flag_any(par, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
-            if(!_lv_area_intersect(area, area, &par->coords)) return false;
+            lv_area_t par_area = par->coords;
+            lv_obj_get_transformed_area(par, &par_area, &par_area, true, false);
+            if(!_lv_area_intersect(area, area, &par_area)) return false;
         }
 
         par = lv_obj_get_parent(par);

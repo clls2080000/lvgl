@@ -158,8 +158,10 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             }
 
             draw_area = inverse_clip_coords_for_obj; //obj_coords_ext;
+            //            draw_area = obj_coords_ext;
             lv_area_increase(&draw_area, 5, 5);
             buf_size_sub = lv_area_get_size(&draw_area);
+            //            buf_size_sub = 1024 * 20;
         }
         else if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE) {
             lv_area_t clip_coords_for_obj;
@@ -210,7 +212,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         void (*set_px_cb)(struct _lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
                           lv_color_t color, lv_opa_t opa);
         set_px_cb = disp_refr->driver->set_px_cb;
-        lv_disp_drv_use_generic_set_px_cb(disp_refr->driver, LV_IMG_CF_RGBA);
+        lv_disp_drv_use_generic_set_px_cb(disp_refr->driver, LV_IMG_CF_TRUE_COLOR_ALPHA);
         disp_refr->driver->draw_ctx_init(disp_refr->driver, new_draw_ctx);
         new_draw_ctx->clip_area = &draw_area_sub;
         new_draw_ctx->buf_area = &draw_area_sub;
@@ -221,18 +223,18 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         draw_dsc.opa = lv_obj_get_style_opa(obj, 0);
         draw_dsc.angle = lv_obj_get_style_transform_angle(obj, 0);
         draw_dsc.zoom = lv_obj_get_style_transform_zoom(obj, 0);
-
         lv_img_dsc_t img;
         img.data = layer_buf;
         img.header.always_zero = 0;
         img.header.w = lv_area_get_width(&draw_area);
-        img.header.cf = LV_IMG_CF_RGBA;
+        img.header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA;
 
         while(draw_area_sub.y1 <= draw_area.y2) {
             draw_dsc.pivot.x = obj->coords.x1 - draw_area_sub.x1;
             draw_dsc.pivot.y = obj->coords.y1 - draw_area_sub.y1;
             draw_dsc.recolor = lv_color_make(lv_rand(0, 0xFF), lv_rand(0, 0xFF), lv_rand(0, 0xFF));
             //            draw_dsc.recolor_opa = LV_OPA_50;
+
             lv_memset_00(layer_buf, buf_size_sub * LV_IMG_PX_SIZE_ALPHA_BYTE);
             refr_obj_core(new_draw_ctx, obj);
 
@@ -252,7 +254,6 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         lv_mem_monitor(&m);
         printf("USED: %dk\n", (LV_MEM_SIZE - m.free_size) / 1024);
 
-
         disp_refr->driver->draw_ctx_deinit(disp_refr->driver, new_draw_ctx);
         lv_mem_free(layer_buf);
         lv_mem_free(new_draw_ctx);
@@ -264,7 +265,6 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
 
 void refr_obj_core(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
 {
-
     const lv_area_t * clip_area_ori = draw_ctx->clip_area;
     lv_area_t clip_coords_for_obj;
 
@@ -281,10 +281,9 @@ void refr_obj_core(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         const char * name = lv_obj_get_user_data(obj);
         if(name) {
             static uint32_t cnt = 0;
-            //            printf("%d. Refresh: %s\n", cnt, name);
+            printf("%d. Refresh: %s\n", cnt, name);
             cnt++;
         }
-
 
         draw_ctx->clip_area = &clip_coords_for_obj;
 
