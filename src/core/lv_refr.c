@@ -188,10 +188,6 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             if(info.res == LV_COVER_RES_COVER) full_cover_global = true;
         }
 
-        if(full_cover_global) {
-            printf("full cover global \n");
-        }
-
         uint32_t px_size = full_cover_global ? sizeof(lv_color_t) : LV_IMG_PX_SIZE_ALPHA_BYTE;
 
         lv_area_t draw_area_sub;
@@ -232,7 +228,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         draw_dsc.opa = lv_obj_get_style_opa(obj, 0);
         draw_dsc.angle = lv_obj_get_style_transform_angle(obj, 0);
         draw_dsc.zoom = lv_obj_get_style_transform_zoom(obj, 0);
-        draw_dsc.antialias = 1;
+        draw_dsc.antialias = disp_refr->driver->antialiasing;
 
         lv_img_dsc_t img;
         img.data = layer_buf;
