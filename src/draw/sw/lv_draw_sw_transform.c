@@ -169,25 +169,26 @@ void lv_draw_sw_transform(lv_draw_ctx_t * draw_ctx, const lv_area_t * dest_area,
 
         int32_t xs_diff = xs2_ups - xs1_ups;
         int32_t ys_diff = ys2_ups - ys1_ups;
-        int32_t xs_step = 0;
-        int32_t ys_step = 0;
+        int32_t xs_step_256 = 0;
+        int32_t ys_step_256 = 0;
         if(dest_w > 1) {
-            xs_step = (256 * xs_diff) / (dest_w - 1);
-            ys_step = (256 * ys_diff) / (dest_w - 1);
+            xs_step_256 = (256 * xs_diff) / (dest_w - 1);
+            ys_step_256 = (256 * ys_diff) / (dest_w - 1);
         }
-        int32_t xs_ups = xs1_ups + 1 * xs_step / 2 / 256;     /*Init. + go the center of the pixel*/
-        int32_t ys_ups = ys1_ups + 1 * ys_step / 2 / 256;
+        int32_t xs_ups = xs1_ups + 1 * xs_step_256 / 2 / 256;     /*Init. + go the center of the pixel*/
+        int32_t ys_ups = ys1_ups + 1 * ys_step_256 / 2 / 256;
 
         if(draw_dsc->antialias == 0) {
             if(cf == LV_IMG_CF_TRUE_COLOR_ALPHA) {
-                argb_no_aa(src_buf, src_w, src_h, src_stride, xs_ups, ys_ups, xs_step, ys_step, dest_w, cbuf, abuf);
+                argb_no_aa(src_buf, src_w, src_h, src_stride, xs_ups, ys_ups, xs_step_256, ys_step_256, dest_w, cbuf, abuf);
             }
             else {
-                rgb_no_aa(src_buf, src_w, src_h, src_stride, xs_ups, ys_ups, xs_step, ys_step, dest_w, cbuf, abuf);
+                rgb_no_aa(src_buf, src_w, src_h, src_stride, xs_ups, ys_ups, xs_step_256, ys_step_256, dest_w, cbuf, abuf);
             }
         }
         else {
-            argb_and_rgb_aa(src_buf, src_w, src_h, src_stride, xs_ups, ys_ups, xs_step, ys_step, dest_w, cbuf, abuf, has_alpha);
+            argb_and_rgb_aa(src_buf, src_w, src_h, src_stride, xs_ups, ys_ups, xs_step_256, ys_step_256, dest_w, cbuf, abuf,
+                            has_alpha);
         }
         cbuf += dest_w;
         abuf += dest_w;
@@ -202,10 +203,16 @@ static void rgb_no_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t src_h, l
                       int32_t xs_ups, int32_t ys_ups, int32_t xs_step, int32_t ys_step,
                       int32_t x_end, lv_color_t * cbuf, uint8_t * abuf)
 {
+    int32_t xs_ups_start = xs_ups;
+    int32_t ys_ups_start = ys_ups;
+
     lv_memset_ff(abuf, x_end);
 
     lv_coord_t x;
     for(x = 0; x < x_end; x++) {
+        xs_ups = xs_ups_start + ((xs_step * x) >> 8);
+        ys_ups = ys_ups_start + ((ys_step * x) >> 8);
+
         int32_t xs_int = xs_ups >> 8;
         int32_t ys_int = ys_ups >> 8;
         if(xs_int < 0 || xs_int >= src_w || ys_int < 0 || ys_int >= src_h) {
@@ -223,8 +230,6 @@ static void rgb_no_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t src_h, l
             cbuf[x].full = *((uint32_t *)src_tmp);
 #endif
         }
-        xs_ups += xs_step;
-        ys_ups += ys_step;
     }
 }
 
@@ -232,8 +237,14 @@ static void argb_no_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t src_h, 
                        int32_t xs_ups, int32_t ys_ups, int32_t xs_step, int32_t ys_step,
                        int32_t x_end, lv_color_t * cbuf, uint8_t * abuf)
 {
+    int32_t xs_ups_start = xs_ups;
+    int32_t ys_ups_start = ys_ups;
+
     lv_coord_t x;
     for(x = 0; x < x_end; x++) {
+        xs_ups = xs_ups_start + ((xs_step * x) >> 8);
+        ys_ups = ys_ups_start + ((ys_step * x) >> 8);
+
         int32_t xs_int = xs_ups >> 8;
         int32_t ys_int = ys_ups >> 8;
         if(xs_int < 0 || xs_int >= src_w || ys_int < 0 || ys_int >= src_h) {
@@ -252,8 +263,6 @@ static void argb_no_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t src_h, 
 #endif
             abuf[x] = src_tmp[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
         }
-        xs_ups += xs_step;
-        ys_ups += ys_step;
     }
 }
 

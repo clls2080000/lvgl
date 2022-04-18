@@ -212,7 +212,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         void (*old_set_px_cb)(struct _lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
                               lv_color_t color, lv_opa_t opa);
         old_set_px_cb = disp_refr->driver->set_px_cb;
-        lv_disp_drv_use_generic_set_px_cb(disp_refr->driver, LV_IMG_CF_TRUE_COLOR_ALPHA);
+        //        lv_disp_drv_use_generic_set_px_cb(disp_refr->driver, LV_IMG_CF_TRUE_COLOR_ALPHA);
         void (*new_set_px_cb)(struct _lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
                               lv_color_t color, lv_opa_t opa) = disp_refr->driver->set_px_cb;
         disp_refr->driver->draw_ctx_init(disp_refr->driver, new_draw_ctx);
@@ -225,6 +225,8 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         draw_dsc.opa = lv_obj_get_style_opa(obj, 0);
         draw_dsc.angle = lv_obj_get_style_transform_angle(obj, 0);
         draw_dsc.zoom = lv_obj_get_style_transform_zoom(obj, 0);
+        draw_dsc.antialias = 1;
+
         lv_img_dsc_t img;
         img.data = layer_buf;
         img.header.always_zero = 0;
@@ -255,9 +257,9 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             if(draw_area_sub.y2 > draw_area.y2) draw_area_sub.y2 = draw_area.y2;
         }
 
-        volatile lv_mem_monitor_t m;
-        lv_mem_monitor(&m);
-        printf("USED: %dk\n", (LV_MEM_SIZE - m.free_size) / 1024);
+        //        volatile lv_mem_monitor_t m;
+        //        lv_mem_monitor(&m);
+        //        printf("USED: %dk\n", (LV_MEM_SIZE - m.free_size) / 1024);
 
         disp_refr->driver->draw_ctx_deinit(disp_refr->driver, new_draw_ctx);
         lv_mem_free(layer_buf);

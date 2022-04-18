@@ -240,24 +240,23 @@ LV_ATTRIBUTE_FAST_MEM static void fill_normal(lv_color_t * dest_buf, const lv_ar
             lv_opa_t opa_inv = 255 - opa;
 
             for(y = 0; y < h; y++) {
-                for(x = 0; x < w; x++) {
-                    if(last_dest_color.full != dest_buf[x].full) {
-                        last_dest_color = dest_buf[x];
-
-#if LV_COLOR_SCREEN_TRANSP
-                        if(disp->driver->screen_transp) {
+                if(disp->driver->screen_transp) {
+                    for(x = 0; x < w; x++) {
+                        if(last_dest_color.full != dest_buf[x].full) {
+                            last_dest_color = dest_buf[x];
                             lv_color_mix_with_alpha(dest_buf[x], dest_buf[x].ch.alpha, color, opa, &last_res_color,
                                                     &last_res_color.ch.alpha);
                         }
-                        else
-#else
-                        LV_UNUSED(disp);
-#endif
-                        {
+                        dest_buf[x] = last_res_color;
+                    }
+                }
+                else {
+                    for(x = 0; x < w; x++) {
+                        if(last_dest_color.full != dest_buf[x].full) {
                             last_res_color = lv_color_mix_premult(color_premult, dest_buf[x], opa_inv);
                         }
+                        dest_buf[x] = last_res_color;
                     }
-                    dest_buf[x] = last_res_color;
                 }
                 dest_buf += dest_stride;
             }
@@ -330,28 +329,37 @@ LV_ATTRIBUTE_FAST_MEM static void fill_normal(lv_color_t * dest_buf, const lv_ar
             lv_opa_t opa_tmp = LV_OPA_TRANSP;
 
             for(y = 0; y < h; y++) {
-                for(x = 0; x < w; x++) {
-                    if(*mask) {
-                        if(*mask != last_mask) opa_tmp = *mask == LV_OPA_COVER ? opa :
-                                                             (uint32_t)((uint32_t)(*mask) * opa) >> 8;
-                        if(*mask != last_mask || last_dest_color.full != dest_buf[x].full) {
-#if LV_COLOR_SCREEN_TRANSP
-                            if(disp->driver->screen_transp) {
+                if(disp->driver->screen_transp) {
+                    for(x = 0; x < w; x++) {
+                        if(*mask) {
+                            if(*mask != last_mask) opa_tmp = *mask == LV_OPA_COVER ? opa :
+                                                                 (uint32_t)((uint32_t)(*mask) * opa) >> 8;
+                            if(*mask != last_mask || last_dest_color.full != dest_buf[x].full) {
                                 lv_color_mix_with_alpha(dest_buf[x], dest_buf[x].ch.alpha, color, opa_tmp, &last_res_color,
                                                         &last_res_color.ch.alpha);
+                                last_mask = *mask;
+                                last_dest_color.full = dest_buf[x].full;
                             }
-                            else
-#endif
-                            {
+                            dest_buf[x] = last_res_color;
+                        }
+                        mask++;
+                    }
+                }
+                else {
+                    for(x = 0; x < w; x++) {
+                        if(*mask) {
+                            if(*mask != last_mask) opa_tmp = *mask == LV_OPA_COVER ? opa :
+                                                                 (uint32_t)((uint32_t)(*mask) * opa) >> 8;
+                            if(*mask != last_mask || last_dest_color.full != dest_buf[x].full) {
                                 if(opa_tmp == LV_OPA_COVER) last_res_color = color;
                                 else last_res_color = lv_color_mix(color, dest_buf[x], opa_tmp);
+                                last_mask = *mask;
+                                last_dest_color.full = dest_buf[x].full;
                             }
-                            last_mask = *mask;
-                            last_dest_color.full = dest_buf[x].full;
+                            dest_buf[x] = last_res_color;
                         }
-                        dest_buf[x] = last_res_color;
+                        mask++;
                     }
-                    mask++;
                 }
                 dest_buf += dest_stride;
                 mask += (mask_stride - w);
@@ -492,15 +500,15 @@ LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_are
         }
         else {
             for(y = 0; y < h; y++) {
-                for(x = 0; x < w; x++) {
-#if LV_COLOR_SCREEN_TRANSP
-                    if(disp->driver->screen_transp) {
+                if(disp->driver->screen_transp) {
+                    for(x = 0; x < w; x++) {
                         lv_color_mix_with_alpha(dest_buf[x], dest_buf[x].ch.alpha, src_buf[x], opa, &dest_buf[x],
                                                 &dest_buf[x].ch.alpha);
                     }
-                    else
-#endif
-                    {
+                }
+                else {
+
+                    for(x = 0; x < w; x++) {
                         dest_buf[x] = lv_color_mix(src_buf[x], dest_buf[x], opa);
                     }
                 }
@@ -517,55 +525,43 @@ LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_are
 
             for(y = 0; y < h; y++) {
                 const lv_opa_t * mask_tmp_x = mask;
-#if 0
-                for(x = 0; x < w; x++) {
-                    MAP_NORMAL_MASK_PX(x);
-                }
-#else
-                for(x = 0; x < w && ((lv_uintptr_t)mask_tmp_x & 0x3); x++) {
-#if LV_COLOR_SCREEN_TRANSP
-                    MAP_NORMAL_MASK_PX_SCR_TRANSP(x)
-#else
-                    MAP_NORMAL_MASK_PX(x)
-#endif
-                }
-
-                uint32_t * mask32 = (uint32_t *)mask_tmp_x;
-                for(; x < x_end4; x += 4) {
-                    if(*mask32) {
-                        if((*mask32) == 0xFFFFFFFF) {
-                            dest_buf[x] = src_buf[x];
-                            dest_buf[x + 1] = src_buf[x + 1];
-                            dest_buf[x + 2] = src_buf[x + 2];
-                            dest_buf[x + 3] = src_buf[x + 3];
-                        }
-                        else {
-                            mask_tmp_x = (const lv_opa_t *)mask32;
-#if LV_COLOR_SCREEN_TRANSP
-                            MAP_NORMAL_MASK_PX_SCR_TRANSP(x)
-                            MAP_NORMAL_MASK_PX_SCR_TRANSP(x + 1)
-                            MAP_NORMAL_MASK_PX_SCR_TRANSP(x + 2)
-                            MAP_NORMAL_MASK_PX_SCR_TRANSP(x + 3)
-#else
-                            MAP_NORMAL_MASK_PX(x)
-                            MAP_NORMAL_MASK_PX(x + 1)
-                            MAP_NORMAL_MASK_PX(x + 2)
-                            MAP_NORMAL_MASK_PX(x + 3)
-#endif
-                        }
+                if(disp->driver->screen_transp) {
+                    for(x = 0; x < w; x++) {
+                        MAP_NORMAL_MASK_PX_SCR_TRANSP(x);
                     }
-                    mask32++;
+                }
+                else {
+                    for(x = 0; x < w && ((lv_uintptr_t)mask_tmp_x & 0x3); x++) {
+                        MAP_NORMAL_MASK_PX_SCR_TRANSP(x)
+                    }
+
+                    uint32_t * mask32 = (uint32_t *)mask_tmp_x;
+                    for(; x < x_end4; x += 4) {
+                        if(*mask32) {
+                            if((*mask32) == 0xFFFFFFFF) {
+                                dest_buf[x] = src_buf[x];
+                                dest_buf[x + 1] = src_buf[x + 1];
+                                dest_buf[x + 2] = src_buf[x + 2];
+                                dest_buf[x + 3] = src_buf[x + 3];
+                            }
+                            else {
+                                mask_tmp_x = (const lv_opa_t *)mask32;
+                                MAP_NORMAL_MASK_PX(x)
+                                MAP_NORMAL_MASK_PX(x + 1)
+                                MAP_NORMAL_MASK_PX(x + 2)
+                                MAP_NORMAL_MASK_PX(x + 3)
+                            }
+                        }
+                        mask32++;
+                    }
+
+                    mask_tmp_x = (const lv_opa_t *)mask32;
+                    for(; x < w ; x++) {
+                        MAP_NORMAL_MASK_PX(x)
+                    }
+
                 }
 
-                mask_tmp_x = (const lv_opa_t *)mask32;
-                for(; x < w ; x++) {
-#if LV_COLOR_SCREEN_TRANSP
-                    MAP_NORMAL_MASK_PX_SCR_TRANSP(x)
-#else
-                    MAP_NORMAL_MASK_PX(x)
-#endif
-                }
-#endif
                 dest_buf += dest_stride;
                 src_buf += src_stride;
                 mask += mask_stride;
@@ -574,17 +570,20 @@ LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_are
         /*Handle opa and mask values too*/
         else {
             for(y = 0; y < h; y++) {
-                for(x = 0; x < w; x++) {
-                    if(mask[x]) {
-                        lv_opa_t opa_tmp = mask[x] >= LV_OPA_MAX ? opa : ((opa * mask[x]) >> 8);
-#if LV_COLOR_SCREEN_TRANSP
-                        if(disp->driver->screen_transp) {
+                if(disp->driver->screen_transp) {
+                    for(x = 0; x < w; x++) {
+                        if(mask[x]) {
+                            lv_opa_t opa_tmp = mask[x] >= LV_OPA_MAX ? opa : ((opa * mask[x]) >> 8);
                             lv_color_mix_with_alpha(dest_buf[x], dest_buf[x].ch.alpha, src_buf[x], opa_tmp,
                                                     &dest_buf[x], &dest_buf[x].ch.alpha);
                         }
-                        else
-#endif
-                        {
+
+                    }
+                }
+                else {
+                    for(x = 0; x < w; x++) {
+                        if(mask[x]) {
+                            lv_opa_t opa_tmp = mask[x] >= LV_OPA_MAX ? opa : ((opa * mask[x]) >> 8);
                             dest_buf[x] = lv_color_mix(src_buf[x], dest_buf[x], opa_tmp);
                         }
                     }
