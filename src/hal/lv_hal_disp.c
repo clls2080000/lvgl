@@ -682,8 +682,8 @@ static void set_px_alpha_generic(lv_img_dsc_t * d, lv_coord_t x, lv_coord_t y, l
     lv_img_buf_set_px_alpha(d, x, y, br);
 }
 
-static void set_px_true_color_alpha(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x,
-                                    lv_coord_t y,
+static void set_px_true_color_alpha(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w,
+                                    lv_coord_t x, lv_coord_t y,
                                     lv_color_t color, lv_opa_t opa)
 {
     (void) disp_drv; /*Unused*/

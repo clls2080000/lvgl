@@ -467,10 +467,6 @@ static void lv_obj_draw(lv_event_t * e)
             info->res = LV_COVER_RES_MASKED;
             return;
         }
-        if(_lv_obj_is_intermediate_layer(obj)) {
-            info->res = LV_COVER_RES_MASKED;
-            return;
-        }
 
         /*Most trivial test. Is the mask fully IN the object? If no it surely doesn't cover it*/
         lv_coord_t r = lv_obj_get_style_radius(obj, LV_PART_MAIN);
@@ -499,11 +495,6 @@ static void lv_obj_draw(lv_event_t * e)
             return;
         }
 #endif
-        if(lv_obj_get_style_opa(obj, LV_PART_MAIN) < LV_OPA_MAX) {
-            info->res = LV_COVER_RES_NOT_COVER;
-            return;
-        }
-
         info->res = LV_COVER_RES_COVER;
 
     }

@@ -158,10 +158,8 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             }
 
             draw_area = inverse_clip_coords_for_obj; //obj_coords_ext;
-            //            draw_area = obj_coords_ext;
-            lv_area_increase(&draw_area, 5, 5);
             buf_size_sub = lv_area_get_size(&draw_area);
-            //            buf_size_sub = 1024 * 20;
+            //            buf_size_sub = 1024 * 4;
         }
         else if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE) {
             lv_area_t clip_coords_for_obj;
@@ -170,7 +168,6 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             }
             draw_area = clip_coords_for_obj;
             buf_size_sub = 1024 * 10;
-            //            buf_size_sub = lv_area_get_size(&draw_area) * sizeof(lv_color_t);
         }
         else {
             LV_LOG_WARN("Unhandled intermediate layer type");
@@ -181,6 +178,21 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         const char * name = lv_obj_get_user_data(obj);
         //        printf("Create layer for: %s\n", name ? name : "?");
 
+
+        bool full_cover_global = false;
+        if(_lv_area_is_in(&draw_area, &obj->coords, 0)) {
+            lv_cover_check_info_t info;
+            info.res = LV_COVER_RES_COVER;
+            info.area = &draw_area;
+            lv_event_send(obj, LV_EVENT_COVER_CHECK, &info);
+            if(info.res == LV_COVER_RES_COVER) full_cover_global = true;
+        }
+
+        if(full_cover_global) {
+            printf("full cover global \n");
+        }
+
+        uint32_t px_size = full_cover_global ? sizeof(lv_color_t) : LV_IMG_PX_SIZE_ALPHA_BYTE;
 
         lv_area_t draw_area_sub;
 
@@ -199,7 +211,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             return;
         }
 
-        uint8_t * layer_buf = lv_mem_alloc(buf_size_sub * LV_IMG_PX_SIZE_ALPHA_BYTE);
+        uint8_t * layer_buf = lv_mem_alloc(buf_size_sub * px_size);
         LV_ASSERT_MALLOC(layer_buf);
         if(layer_buf == NULL) {
             LV_LOG_WARN("Out of memory");
@@ -209,12 +221,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         //        printf("buf_size: %d (%s)\n", buf_size_sub, inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE ? "simple" : "transf");
 
         /*Set-up a new draw_ctx*/
-        void (*old_set_px_cb)(struct _lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
-                              lv_color_t color, lv_opa_t opa);
-        old_set_px_cb = disp_refr->driver->set_px_cb;
-        //        lv_disp_drv_use_generic_set_px_cb(disp_refr->driver, LV_IMG_CF_TRUE_COLOR_ALPHA);
-        void (*new_set_px_cb)(struct _lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
-                              lv_color_t color, lv_opa_t opa) = disp_refr->driver->set_px_cb;
+        bool old_scr_transp = disp_refr->driver->screen_transp;
         disp_refr->driver->draw_ctx_init(disp_refr->driver, new_draw_ctx);
         new_draw_ctx->clip_area = &draw_area_sub;
         new_draw_ctx->buf_area = &draw_area_sub;
@@ -231,15 +238,24 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         img.data = layer_buf;
         img.header.always_zero = 0;
         img.header.w = lv_area_get_width(&draw_area);
-        img.header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA;
-
         while(draw_area_sub.y1 <= draw_area.y2) {
+            bool full_cover = false;
+            if(_lv_area_is_in(&draw_area_sub, &obj->coords, 0)) {
+                lv_cover_check_info_t info;
+                info.res = LV_COVER_RES_COVER;
+                info.area = &draw_area_sub;
+                lv_event_send(obj, LV_EVENT_COVER_CHECK, &info);
+                if(info.res == LV_COVER_RES_COVER) full_cover = true;
+            }
+
+            disp_refr->driver->screen_transp = full_cover ? 0 : 1;
+            img.header.cf = full_cover ? LV_IMG_CF_TRUE_COLOR : LV_IMG_CF_TRUE_COLOR_ALPHA;
             draw_dsc.pivot.x = obj->coords.x1 - draw_area_sub.x1;
             draw_dsc.pivot.y = obj->coords.y1 - draw_area_sub.y1;
             draw_dsc.recolor = lv_color_make(lv_rand(0, 0xFF), lv_rand(0, 0xFF), lv_rand(0, 0xFF));
             //            draw_dsc.recolor_opa = LV_OPA_50;LV_IMG_PX_SIZE_ALPHA_BYTE
 
-            lv_memset_00(layer_buf, buf_size_sub * LV_IMG_PX_SIZE_ALPHA_BYTE);
+            if(!full_cover) lv_memset_00(layer_buf, buf_size_sub * px_size);
             refr_obj_core(new_draw_ctx, obj);
 
             lv_img_cache_invalidate_src(&img);
@@ -248,23 +264,23 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             const char * name = lv_obj_get_user_data(obj);
             //            printf("Blend: %s\n", name ? name : "?");
 
-            disp_refr->driver->set_px_cb = old_set_px_cb;
+            disp_refr->driver->screen_transp = old_scr_transp;
             lv_draw_img(draw_ctx, &draw_dsc, &draw_area_sub, &img);
-            disp_refr->driver->set_px_cb = new_set_px_cb;
 
             draw_area_sub.y1 += row_cnt;
             draw_area_sub.y2 += row_cnt;
             if(draw_area_sub.y2 > draw_area.y2) draw_area_sub.y2 = draw_area.y2;
         }
 
-        //        volatile lv_mem_monitor_t m;
-        //        lv_mem_monitor(&m);
-        //        printf("USED: %dk\n", (LV_MEM_SIZE - m.free_size) / 1024);
+        volatile lv_mem_monitor_t m;
+        lv_mem_monitor(&m);
+        printf("USED: %dk\n", (LV_MEM_SIZE - m.free_size) / 1024);
 
         disp_refr->driver->draw_ctx_deinit(disp_refr->driver, new_draw_ctx);
         lv_mem_free(layer_buf);
         lv_mem_free(new_draw_ctx);
-        disp_refr->driver->set_px_cb = old_set_px_cb;
+        disp_refr->driver->screen_transp = old_scr_transp;
+        //        disp_refr->driver->set_px_cb = old_set_px_cb;
     }
 }
 
@@ -288,7 +304,7 @@ void refr_obj_core(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         const char * name = lv_obj_get_user_data(obj);
         if(name) {
             static uint32_t cnt = 0;
-            printf("%d. Refresh: %s\n", cnt, name);
+            //            printf("%d. Refresh: %s\n", cnt, name);
             cnt++;
         }
 
@@ -859,32 +875,32 @@ static lv_obj_t * lv_refr_get_top_obj(const lv_area_t * area_p, lv_obj_t * obj)
 {
     lv_obj_t * found_p = NULL;
 
+    if(_lv_area_is_in(area_p, &obj->coords, 0) == false) return NULL;
+    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) return NULL;
+    if(_lv_obj_is_intermediate_layer(obj)) return NULL;
+
     /*If this object is fully cover the draw area then check the children too*/
-    if(_lv_area_is_in(area_p, &obj->coords, 0) && lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) == false) {
-        lv_cover_check_info_t info;
-        info.res = LV_COVER_RES_COVER;
-        info.area = area_p;
-        lv_event_send(obj, LV_EVENT_COVER_CHECK, &info);
-        if(info.res == LV_COVER_RES_MASKED) return NULL;
+    lv_cover_check_info_t info;
+    info.res = LV_COVER_RES_COVER;
+    info.area = area_p;
+    lv_event_send(obj, LV_EVENT_COVER_CHECK, &info);
+    if(info.res == LV_COVER_RES_MASKED) return NULL;
 
-        uint32_t i;
-        uint32_t child_cnt = lv_obj_get_child_cnt(obj);
-        for(i = 0; i < child_cnt; i++) {
-            lv_obj_t * child = obj->spec_attr->children[i];
-            found_p = lv_refr_get_top_obj(area_p, child);
+    uint32_t i;
+    uint32_t child_cnt = lv_obj_get_child_cnt(obj);
+    for(i = 0; i < child_cnt; i++) {
+        lv_obj_t * child = obj->spec_attr->children[i];
+        found_p = lv_refr_get_top_obj(area_p, child);
 
-            /*If a children is ok then break*/
-            if(found_p != NULL) {
-                break;
-            }
+        /*If a children is ok then break*/
+        if(found_p != NULL) {
+            break;
         }
+    }
 
-        /*If no better children use this object*/
-        if(found_p == NULL) {
-            if(info.res == LV_COVER_RES_COVER) {
-                found_p = obj;
-            }
-        }
+    /*If no better children use this object*/
+    if(found_p == NULL && info.res == LV_COVER_RES_COVER) {
+        found_p = obj;
     }
 
     return found_p;

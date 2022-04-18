@@ -161,11 +161,11 @@ void lv_draw_sw_transform(lv_draw_ctx_t * draw_ctx, const lv_area_t * dest_area,
 
         p.x = dest_area->x1;
         p.y = dest_area->y1 + y;
-        transform_point_ups(&p, &xs1_ups, &ys1_ups, trans_dsc.cfg.angle, trans_dsc.cfg.zoom, &pivot, true);
+        transform_point_ups(&p, &xs1_ups, &ys1_ups, draw_dsc->angle, draw_dsc->zoom, &draw_dsc->pivot, true);
 
         p.x = dest_area->x2;
         p.y = dest_area->y1 + y;
-        transform_point_ups(&p, &xs2_ups, &ys2_ups, trans_dsc.cfg.angle, trans_dsc.cfg.zoom, &pivot, true);
+        transform_point_ups(&p, &xs2_ups, &ys2_ups, draw_dsc->angle, draw_dsc->zoom, &draw_dsc->pivot, true);
 
         int32_t xs_diff = xs2_ups - xs1_ups;
         int32_t ys_diff = ys2_ups - ys1_ups;
@@ -336,21 +336,21 @@ static void argb_and_rgb_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t sr
                 if(a_hor != a_base) a_hor = ((a_hor * xs_fract) + (a_base * (0x100 - xs_fract))) >> 8;
                 abuf[x] = (a_ver + a_hor) >> 1;
 
-                if(abuf[x]) {
+                if(abuf[x] == 0x00) continue;
+
 #if LV_COLOR_DEPTH == 8
-                    c_base.full = px_base[0];
-                    c_ver.full = px_ver[0];
-                    c_hor.full = px_hor[0];
+                c_base.full = px_base[0];
+                c_ver.full = px_ver[0];
+                c_hor.full = px_hor[0];
 #elif LV_COLOR_DEPTH == 16
-                    c_base.full = px_base[0] + (px_base[1] << 8);
-                    c_ver.full = px_ver[0] + (px_ver[1] << 8);
-                    c_hor.full = px_hor[0] + (px_hor[1] << 8);
+                c_base.full = px_base[0] + (px_base[1] << 8);
+                c_ver.full = px_ver[0] + (px_ver[1] << 8);
+                c_hor.full = px_hor[0] + (px_hor[1] << 8);
 #elif LV_COLOR_DEPTH == 32
-                    c_base.full = *((uint32_t *)px_base);
-                    c_ver.full = *((uint32_t *)px_ver);
-                    c_hor.full = *((uint32_t *)px_hor);
+                c_base.full = *((uint32_t *)px_base);
+                c_ver.full = *((uint32_t *)px_ver);
+                c_hor.full = *((uint32_t *)px_hor);
 #endif
-                }
             }
             /*No alpha channel -> RGB*/
             else {
@@ -360,13 +360,17 @@ static void argb_and_rgb_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t sr
                 abuf[x] = 0xff;
             }
 
-            c_ver = lv_color_mix(c_ver, c_base, ys_fract);
-            c_hor = lv_color_mix(c_hor, c_base, xs_fract);
-            cbuf[x] = lv_color_mix(c_hor, c_ver, LV_OPA_50);
+            if(c_base.full == c_ver.full && c_base.full == c_hor.full) {
+                cbuf[x] = c_base;
+            }
+            else {
+                c_ver = lv_color_mix(c_ver, c_base, ys_fract);
+                c_hor = lv_color_mix(c_hor, c_base, xs_fract);
+                cbuf[x] = lv_color_mix(c_hor, c_ver, LV_OPA_50);
+            }
         }
         /*Partially out of the image*/
         else {
-
 #if LV_COLOR_DEPTH == 8
             cbuf[x].full = src_tmp[0];
 #elif LV_COLOR_DEPTH == 16
