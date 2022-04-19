@@ -82,28 +82,31 @@ void transform_point(lv_point_t * p, lv_coord_t angle, lv_coord_t zoom, lv_point
         return;
     }
 
-    /*div by 10 approximation*/
+    static int32_t angle_prev = INT32_MIN;
+    static int32_t sinma;
+    static int32_t cosma;
+    if(angle_prev != angle) {
+        int32_t angle_low = angle / 10;
+        int32_t angle_high = angle_low + 1;
+        int32_t angle_rem = angle  - (angle_low * 10);
 
-    //    int32_t angle_low = angle / 10;
-    //    int32_t angle_high = angle_low + 1;
-    //    int32_t angle_rem = angle  - (angle_low * 10);
-    //
-    //    int32_t s1 = lv_trigo_sin(angle_low);
-    //    int32_t s2 = lv_trigo_sin(angle_high);
-    //
-    //    int32_t c1 = lv_trigo_sin(angle_low + 90);
-    //    int32_t c2 = lv_trigo_sin(angle_high + 90);
-    //
-    //    int32_t sinma = (s1 * (10 - angle_rem) + s2 * angle_rem) / 10;
-    //    int32_t cosma = (c1 * (10 - angle_rem) + c2 * angle_rem) / 10;
-    //    sinma = sinma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
-    //    cosma = cosma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+        int32_t s1 = lv_trigo_sin(angle_low);
+        int32_t s2 = lv_trigo_sin(angle_high);
 
-    angle = ((angle * 205) + 102) >> 11;
+        int32_t c1 = lv_trigo_sin(angle_low + 90);
+        int32_t c2 = lv_trigo_sin(angle_high + 90);
 
-    /*Use smaller value to avoid overflow*/
-    int32_t sinma = lv_trigo_sin(angle) >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
-    int32_t cosma = lv_trigo_cos(angle) >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+        sinma = (s1 * (10 - angle_rem) + s2 * angle_rem) / 10;
+        cosma = (c1 * (10 - angle_rem) + c2 * angle_rem) / 10;
+        sinma = sinma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+        cosma = cosma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+        angle_prev = angle;
+    }
+    //    angle = ((angle * 205) + 102) >> 11;
+    //
+    //    /*Use smaller value to avoid overflow*/
+    //    int32_t sinma = lv_trigo_sin(angle) >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+    //    int32_t cosma = lv_trigo_cos(angle) >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
 
     lv_coord_t xt = p->x - pivot->x;
     lv_coord_t yt = p->y - pivot->y;

@@ -214,7 +214,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             return;
         }
 
-        //        printf("buf_size: %d (%s)\n", buf_size_sub, inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE ? "simple" : "transf");
+        //      printf("buf_size: %d (%s)\n", buf_size_sub, inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE ? "simple" : "transf");
 
         /*Set-up a new draw_ctx*/
         bool old_scr_transp = disp_refr->driver->screen_transp;
@@ -228,7 +228,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
         draw_dsc.opa = lv_obj_get_style_opa(obj, 0);
         draw_dsc.angle = lv_obj_get_style_transform_angle(obj, 0);
         draw_dsc.zoom = lv_obj_get_style_transform_zoom(obj, 0);
-        draw_dsc.antialias = disp_refr->driver->antialiasing;
+        draw_dsc.antialias = 1;//disp_refr->driver->antialiasing;
 
         lv_img_dsc_t img;
         img.data = layer_buf;

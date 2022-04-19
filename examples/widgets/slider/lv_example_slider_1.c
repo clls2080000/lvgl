@@ -7,7 +7,9 @@ static lv_obj_t * label;
 static void set_angle(void * img, int32_t v)
 {
     lv_obj_invalidate(img);
-    lv_obj_set_style_transform_angle(img, v, 0);
+    lv_obj_set_style_transform_angle(img, lv_map(v, 0, 255, 0, 900), 0);
+    lv_obj_set_style_transform_zoom(img, lv_map(v, 0, 255, 200, 300), 0);
+    lv_obj_set_style_opa(img, lv_map(v, 0, 255, 100, 255), 0);
 }
 /**
  * A default slider with a label displaying the current value
@@ -27,7 +29,7 @@ void lv_example_slider_1(void)
     lv_obj_set_style_pad_row(cont, 30, 0);
     lv_obj_set_style_pad_left(cont, 50, 0);
 	lv_obj_set_size(cont, 400, 400);
-    lv_obj_align(cont, LV_ALIGN_CENTER, 500, -50);
+    lv_obj_align(cont, LV_ALIGN_CENTER, 300, -100);
     static const char * cont_name = "Cont";
     lv_obj_set_user_data(cont, cont_name);
     lv_obj_t * cont2 = lv_obj_create(cont);
@@ -78,12 +80,13 @@ void lv_example_slider_1(void)
 
     lv_anim_t a;
     lv_anim_init(&a);
-    lv_anim_set_var(&a, slider1);
+    lv_anim_set_var(&a, cont);
     lv_anim_set_exec_cb(&a, set_angle);
-    lv_anim_set_values(&a, 0, 3600);
-    lv_anim_set_time(&a, 15000);
+    lv_anim_set_values(&a, 0, 256);
+    lv_anim_set_time(&a, 10000);
+    lv_anim_set_playback_time(&a, 10000);
     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-//    lv_anim_start(&a);
+    lv_anim_start(&a);
 
 
 }
