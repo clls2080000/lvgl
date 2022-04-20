@@ -3,13 +3,13 @@
 
 static void set_angle(void * img, int32_t v)
 {
-//    lv_obj_set_style_transform_angle(img, v, 0);
+    //    lv_obj_set_style_transform_angle(img, v, 0);
     lv_img_set_angle(img, v);
 }
 
 static void set_zoom(void * img, int32_t v)
 {
-//    lv_obj_set_style_transform_zoom(img, v, 0);
+    //    lv_obj_set_style_transform_zoom(img, v, 0);
     lv_img_set_zoom(img, v);
 }
 
