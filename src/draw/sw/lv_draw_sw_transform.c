@@ -28,11 +28,21 @@ typedef struct {
     int32_t zoom;
     int32_t angle;
     lv_point_t pivot;
-} point_transfourm_dsc_t;
+} point_transform_dsc_t;
 
 /**********************
  *  STATIC PROTOTYPES
  **********************/
+/**
+ * Transform a point with 1/256 precision (the output coordinates are upscaled by 256)
+ * @param t         pointer to n initialized `point_transform_dsc_t` structure
+ * @param xin       X coordinate to rotate
+ * @param yin       Y coordinate to rotate
+ * @param xout      upscaled, transformed X
+ * @param yout      upscaled, transformed Y
+ */
+static void transform_point_upscaled(point_transform_dsc_t * t, int32_t xin, int32_t yin, int32_t * xout,
+                                     int32_t * yout);
 
 static void argb_no_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t src_h, lv_coord_t src_stride,
                        int32_t xs_ups, int32_t ys_ups, int32_t xs_step, int32_t ys_step,
@@ -58,36 +68,13 @@ static void argb_and_rgb_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t sr
  *   GLOBAL FUNCTIONS
  **********************/
 
-
-void transform_point_ups(point_transfourm_dsc_t * t, int32_t xin, int32_t yin, int32_t * xout, int32_t * yout)
-{
-    xin -= t->pivot.x;
-    yin -= t->pivot.y;
-
-    xin = ((int32_t)(xin * t->zoom) >> 8) + t->pivot.x;
-    yin = ((int32_t)(yin * t->zoom) >> 8) + t->pivot.y;
-
-    if(t->angle == 0) {
-        *xout = xin << 8;
-        *yout = yin << 8;
-        return;
-    }
-
-    lv_coord_t xt = xin - t->pivot.x;
-    lv_coord_t yt = yin - t->pivot.y;
-
-    *xout = ((t->cosma * xt - t->sinma * yt) >> 2) + t->pivot.x * 256;
-    *yout = ((t->sinma * xt + t->cosma * yt) >> 2) + t->pivot.y * 256;
-
-}
-
 void lv_draw_sw_transform(lv_draw_ctx_t * draw_ctx, const lv_area_t * dest_area, const void * src_buf,
                           lv_coord_t src_w, lv_coord_t src_h, lv_coord_t src_stride,
                           const lv_draw_img_dsc_t * draw_dsc, lv_img_cf_t cf, lv_color_t * cbuf, lv_opa_t * abuf)
 {
     LV_UNUSED(draw_ctx);
 
-    point_transfourm_dsc_t tr_dsc;
+    point_transform_dsc_t tr_dsc;
     tr_dsc.angle = -draw_dsc->angle;
     tr_dsc.zoom = (256 * 256) / draw_dsc->zoom;
     tr_dsc.pivot = draw_dsc->pivot;
@@ -104,8 +91,8 @@ void lv_draw_sw_transform(lv_draw_ctx_t * draw_ctx, const lv_area_t * dest_area,
 
     tr_dsc.sinma = (s1 * (10 - angle_rem) + s2 * angle_rem) / 10;
     tr_dsc.cosma = (c1 * (10 - angle_rem) + c2 * angle_rem) / 10;
-    tr_dsc.sinma = tr_dsc.sinma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
-    tr_dsc.cosma = tr_dsc.cosma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+    tr_dsc.sinma = tr_dsc.sinma >> (LV_TRIGO_SHIFT - 10);
+    tr_dsc.cosma = tr_dsc.cosma >> (LV_TRIGO_SHIFT - 10);
 
     lv_coord_t dest_w = lv_area_get_width(dest_area);
     lv_coord_t dest_h = lv_area_get_height(dest_area);
@@ -114,8 +101,8 @@ void lv_draw_sw_transform(lv_draw_ctx_t * draw_ctx, const lv_area_t * dest_area,
     for(y = 0; y < dest_h; y++) {
         int32_t xs1_ups, ys1_ups, xs2_ups, ys2_ups;
 
-        transform_point_ups(&tr_dsc, dest_area->x1, dest_area->y1 + y, &xs1_ups, &ys1_ups);
-        transform_point_ups(&tr_dsc, dest_area->x2, dest_area->y1 + y, &xs2_ups, &ys2_ups);
+        transform_point_upscaled(&tr_dsc, dest_area->x1, dest_area->y1 + y, &xs1_ups, &ys1_ups);
+        transform_point_upscaled(&tr_dsc, dest_area->x2, dest_area->y1 + y, &xs2_ups, &ys2_ups);
 
         int32_t xs_diff = xs2_ups - xs1_ups;
         int32_t ys_diff = ys2_ups - ys1_ups;
@@ -342,6 +329,29 @@ static void argb_and_rgb_aa(const uint8_t * src, lv_coord_t src_w, lv_coord_t sr
             }
         }
     }
+}
+
+static void transform_point_upscaled(point_transform_dsc_t * t, int32_t xin, int32_t yin, int32_t * xout,
+                                     int32_t * yout)
+{
+    xin -= t->pivot.x;
+    yin -= t->pivot.y;
+
+    xin = ((int32_t)(xin * t->zoom) >> 8) + t->pivot.x;
+    yin = ((int32_t)(yin * t->zoom) >> 8) + t->pivot.y;
+
+    if(t->angle == 0) {
+        *xout = xin << 8;
+        *yout = yin << 8;
+        return;
+    }
+
+    lv_coord_t xt = xin - t->pivot.x;
+    lv_coord_t yt = yin - t->pivot.y;
+
+    *xout = ((t->cosma * xt - t->sinma * yt) >> 2) + t->pivot.x * 256;
+    *yout = ((t->sinma * xt + t->cosma * yt) >> 2) + t->pivot.y * 256;
+
 }
 
 #endif

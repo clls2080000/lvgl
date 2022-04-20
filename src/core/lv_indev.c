@@ -61,105 +61,6 @@ static lv_obj_t * indev_obj_act = NULL;
  *   GLOBAL FUNCTIONS
  **********************/
 
-void transform_point(lv_point_t * p, lv_coord_t angle, lv_coord_t zoom, lv_point_t * pivot, bool inv)
-{
-    if(inv) {
-        angle = -angle;
-        zoom = (256 * 256) / zoom;
-    }
-
-    if(angle == 0 && zoom == LV_IMG_ZOOM_NONE) {
-        return;
-    }
-
-    p->x -= pivot->x;
-    p->y -= pivot->y;
-
-    p->x = (((int32_t)(p->x) * zoom) >> 8) + pivot->x;
-    p->y = (((int32_t)(p->y) * zoom) >> 8) + pivot->y;
-
-    if(angle == 0) {
-        return;
-    }
-
-    static int32_t angle_prev = INT32_MIN;
-    static int32_t sinma;
-    static int32_t cosma;
-    if(angle_prev != angle) {
-        int32_t angle_low = angle / 10;
-        int32_t angle_high = angle_low + 1;
-        int32_t angle_rem = angle  - (angle_low * 10);
-
-        int32_t s1 = lv_trigo_sin(angle_low);
-        int32_t s2 = lv_trigo_sin(angle_high);
-
-        int32_t c1 = lv_trigo_sin(angle_low + 90);
-        int32_t c2 = lv_trigo_sin(angle_high + 90);
-
-        sinma = (s1 * (10 - angle_rem) + s2 * angle_rem) / 10;
-        cosma = (c1 * (10 - angle_rem) + c2 * angle_rem) / 10;
-        sinma = sinma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
-        cosma = cosma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
-        angle_prev = angle;
-    }
-    //    angle = ((angle * 205) + 102) >> 11;
-    //
-    //    /*Use smaller value to avoid overflow*/
-    //    int32_t sinma = lv_trigo_sin(angle) >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
-    //    int32_t cosma = lv_trigo_cos(angle) >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
-
-    lv_coord_t xt = p->x - pivot->x;
-    lv_coord_t yt = p->y - pivot->y;
-
-    p->x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->x;
-    p->y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->y;
-
-}
-/**
- * Get the area of a rectangle if its rotated and scaled
- * @param res store the coordinates here
- * @param w width of the rectangle to transform
- * @param h height of the rectangle to transform
- * @param angle angle of rotation
- * @param zoom zoom, (256 no zoom)
- * @param pivot x,y pivot coordinates of rotation
- */
-void transform_obj_point(lv_obj_t * obj, lv_point_t * p, bool inv)
-{
-
-#if LV_DRAW_COMPLEX
-    lv_point_t pivot;
-    pivot.x = obj->coords.x1;
-    pivot.y = obj->coords.y1;
-    int16_t angle = lv_obj_get_style_transform_angle(obj, 0);
-    int16_t zoom = lv_obj_get_style_transform_zoom(obj, 0);
-
-    transform_point(p, angle, zoom, &pivot, inv);
-#else
-    LV_UNUSED(angle);
-    LV_UNUSED(zoom);
-    LV_UNUSED(pivot);
-    res->x1 = 0;
-    res->y1 = 0;
-    res->x2 = w - 1;
-    res->y2 = h - 1;
-#endif
-}
-
-void transform_point_recursive(lv_obj_t * obj, lv_point_t * p, bool inv)
-{
-    if(obj) {
-        if(inv) {
-            transform_point_recursive(lv_obj_get_parent(obj), p, inv);
-            transform_obj_point(obj, p, inv);
-        }
-        else {
-            transform_obj_point(obj, p, inv);
-            transform_point_recursive(lv_obj_get_parent(obj), p, inv);
-        }
-    }
-}
-
 void lv_indev_read_timer_cb(lv_timer_t * timer)
 {
     INDEV_TRACE("begin");
@@ -404,7 +305,7 @@ lv_obj_t * lv_indev_search_obj(lv_obj_t * obj, lv_point_t * point)
     if(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) return NULL;
 
     lv_point_t p_trans = *point;
-    transform_obj_point(obj, &p_trans, true);
+    lv_obj_transform_point(obj, &p_trans, false, true);
 
     bool hit_test_ok = lv_obj_hit_test(obj, &p_trans);
 
@@ -951,9 +852,7 @@ static void indev_proc_press(_lv_indev_proc_t * proc)
         if(indev_reset_check(proc)) return;
     }
 
-    transform_point_recursive(indev_obj_act, &proc->types.pointer.act_point, true);
-
-
+    lv_obj_transform_point(indev_obj_act, &proc->types.pointer.act_point, true, true);
 
     /*If a new object was found reset some variables and send a pressed event handler*/
     if(indev_obj_act != proc->types.pointer.act_obj) {

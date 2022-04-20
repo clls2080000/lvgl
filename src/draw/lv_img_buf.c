@@ -431,18 +431,16 @@ void _lv_img_buf_get_transformed_area(lv_area_t * res, lv_coord_t w, lv_coord_t 
         return;
     }
 
-
-
     lv_point_t p[4] = {
         {0, 0},
         {w - 1, 0},
         {0, h - 1},
         {w - 1, h - 1},
     };
-    transform_point(&p[0], angle, zoom, pivot, false);
-    transform_point(&p[1], angle, zoom, pivot, false);
-    transform_point(&p[2], angle, zoom, pivot, false);
-    transform_point(&p[3], angle, zoom, pivot, false);
+    lv_point_transform(&p[0], angle, zoom, pivot);
+    lv_point_transform(&p[1], angle, zoom, pivot);
+    lv_point_transform(&p[2], angle, zoom, pivot);
+    lv_point_transform(&p[3], angle, zoom, pivot);
     res->x1 = LV_MIN4(p[0].x, p[1].x, p[2].x, p[3].x);
     res->x2 = LV_MAX4(p[0].x, p[1].x, p[2].x, p[3].x);
     res->y1 = LV_MIN4(p[0].y, p[1].y, p[2].y, p[3].y);

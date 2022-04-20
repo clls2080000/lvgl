@@ -26,6 +26,7 @@
 static lv_coord_t calc_content_width(lv_obj_t * obj);
 static lv_coord_t calc_content_height(lv_obj_t * obj);
 static void layout_update_core(lv_obj_t * obj);
+static void transform_point(const lv_obj_t * obj, lv_point_t * p, bool inv);
 
 /**********************
  *  STATIC VARIABLES
@@ -794,37 +795,41 @@ void lv_obj_move_children_by(lv_obj_t * obj, lv_coord_t x_diff, lv_coord_t y_dif
     }
 }
 
-void transform_point_recursive(lv_obj_t * obj, lv_point_t * p, bool inv);
+void lv_obj_transform_point(const lv_obj_t * obj, lv_point_t * p, bool recursive, bool inv)
+{
+    if(obj) {
+        if(inv) {
+            if(recursive) lv_obj_transform_point(lv_obj_get_parent(obj), p, recursive, inv);
+            transform_point(obj, p, inv);
+        }
+        else {
+            transform_point(obj, p, inv);
+            if(recursive) lv_obj_transform_point(lv_obj_get_parent(obj), p, recursive, inv);
+        }
+    }
+}
 
-void lv_obj_get_transformed_area(const lv_obj_t * obj, const lv_area_t * area_in, lv_area_t * area_out, bool recursive,
+void lv_obj_get_transformed_area(const lv_obj_t * obj, lv_area_t * area, bool recursive,
                                  bool inv)
 {
     lv_point_t p[4] = {
-        {area_in->x1, area_in->y1},
-        {area_in->x1, area_in->y2},
-        {area_in->x2, area_in->y1},
-        {area_in->x2, area_in->y2},
+        {area->x1, area->y1},
+        {area->x1, area->y2},
+        {area->x2, area->y1},
+        {area->x2, area->y2},
     };
-    if(recursive) {
-        transform_point_recursive(obj, &p[0], inv);
-        transform_point_recursive(obj, &p[1], inv);
-        transform_point_recursive(obj, &p[2], inv);
-        transform_point_recursive(obj, &p[3], inv);
-    }
-    else {
-        transform_obj_point(obj, &p[0], inv);
-        transform_obj_point(obj, &p[1], inv);
-        transform_obj_point(obj, &p[2], inv);
-        transform_obj_point(obj, &p[3], inv);
-    }
-    area_out->x1 = LV_MIN4(p[0].x, p[1].x, p[2].x, p[3].x);
-    area_out->x2 = LV_MAX4(p[0].x, p[1].x, p[2].x, p[3].x);
-    area_out->y1 = LV_MIN4(p[0].y, p[1].y, p[2].y, p[3].y);
-    area_out->y2 = LV_MAX4(p[0].y, p[1].y, p[2].y, p[3].y);
+    lv_obj_transform_point(obj, &p[0], recursive, inv);
+    lv_obj_transform_point(obj, &p[1], recursive, inv);
+    lv_obj_transform_point(obj, &p[2], recursive, inv);
+    lv_obj_transform_point(obj, &p[3], recursive, inv);
 
-
-    lv_area_increase(area_out, 5, 5);
+    area->x1 = LV_MIN4(p[0].x, p[1].x, p[2].x, p[3].x);
+    area->x2 = LV_MAX4(p[0].x, p[1].x, p[2].x, p[3].x);
+    area->y1 = LV_MIN4(p[0].y, p[1].y, p[2].y, p[3].y);
+    area->y2 = LV_MAX4(p[0].y, p[1].y, p[2].y, p[3].y);
+    lv_area_increase(area, 5, 5);
 }
+
 
 void lv_obj_invalidate_area(const lv_obj_t * obj, const lv_area_t * area)
 {
@@ -882,7 +887,7 @@ bool lv_obj_area_is_visible(const lv_obj_t * obj, lv_area_t * area)
         if(!_lv_area_intersect(area, area, &obj_coords)) return false;
     }
 
-    lv_obj_get_transformed_area(obj, area, area, true, false);
+    lv_obj_get_transformed_area(obj, area, true, false);
 
 
     /*Truncate recursively to the parents*/
@@ -894,7 +899,7 @@ bool lv_obj_area_is_visible(const lv_obj_t * obj, lv_area_t * area)
         /*Truncate to the parent and if no common parts break*/
         if(!lv_obj_has_flag_any(par, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
             lv_area_t par_area = par->coords;
-            lv_obj_get_transformed_area(par, &par_area, &par_area, true, false);
+            lv_obj_get_transformed_area(par, &par_area, true, false);
             if(!_lv_area_intersect(area, area, &par_area)) return false;
         }
 
@@ -1140,4 +1145,20 @@ static void layout_update_core(lv_obj_t * obj)
             LV_GC_ROOT(_lv_layout_list)[layout_id - 1].cb(obj, user_data);
         }
     }
+}
+
+static void transform_point(const lv_obj_t * obj, lv_point_t * p, bool inv)
+{
+    lv_point_t pivot;
+    pivot.x = obj->coords.x1;
+    pivot.y = obj->coords.y1;
+    int16_t angle = lv_obj_get_style_transform_angle(obj, 0);
+    int16_t zoom = lv_obj_get_style_transform_zoom(obj, 0);
+
+    if(inv) {
+        angle = -angle;
+        zoom = (256 * 256) / zoom;
+    }
+
+    lv_point_transform(p, angle, zoom, &pivot);
 }

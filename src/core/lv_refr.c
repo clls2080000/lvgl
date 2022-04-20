@@ -57,6 +57,7 @@ static void refr_area(const lv_area_t * area_p);
 static void refr_area_part(lv_draw_ctx_t * draw_ctx);
 static lv_obj_t * lv_refr_get_top_obj(const lv_area_t * area_p, lv_obj_t * obj);
 static void refr_obj_and_children(lv_draw_ctx_t * draw_ctx, lv_obj_t * top_obj);
+static void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj);
 static uint32_t get_max_row(lv_disp_t * disp, lv_coord_t area_w, lv_coord_t area_h);
 static void draw_buf_flush(lv_disp_t * disp);
 static void call_flush_cb(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t * color_p);
@@ -125,164 +126,7 @@ void lv_refr_now(lv_disp_t * disp)
     }
 }
 
-void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
-{
-    /*Do not refresh hidden objects*/
-    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) return;
-    lv_intermediate_layer_type_t inlayer = _lv_obj_is_intermediate_layer(obj);
-    if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_NONE) {
-        refr_obj_core(draw_ctx, obj);
-    }
-    else {
-        lv_area_t draw_area;
-        const lv_area_t * clip_area_ori = draw_ctx->clip_area;
-        uint32_t buf_size_full;
-        uint32_t buf_size_sub;
-        lv_coord_t ext_draw_size = _lv_obj_get_ext_draw_size(obj);
-        lv_area_t obj_coords_ext;
-        lv_obj_get_coords(obj, &obj_coords_ext);
-        lv_area_increase(&obj_coords_ext, ext_draw_size, ext_draw_size);
-
-        if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_TRANSFORM) {
-            lv_area_t clip_coords_for_obj;
-            lv_area_t tranf_coords;
-            lv_obj_get_transformed_area(obj, &obj_coords_ext, &tranf_coords, false, false);
-            if(!_lv_area_intersect(&clip_coords_for_obj, clip_area_ori, &tranf_coords)) {
-                return;
-            }
-
-            lv_area_t inverse_clip_coords_for_obj;
-            lv_obj_get_transformed_area(obj, &clip_coords_for_obj, &inverse_clip_coords_for_obj, false, true);
-            if(!_lv_area_intersect(&inverse_clip_coords_for_obj, &inverse_clip_coords_for_obj, &obj_coords_ext)) {
-                return;
-            }
-
-            draw_area = inverse_clip_coords_for_obj; //obj_coords_ext;
-            buf_size_sub = lv_area_get_size(&draw_area);
-            //            buf_size_sub = 1024 * 4;
-        }
-        else if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE) {
-            lv_area_t clip_coords_for_obj;
-            if(!_lv_area_intersect(&clip_coords_for_obj, clip_area_ori, &obj_coords_ext)) {
-                return;
-            }
-            draw_area = clip_coords_for_obj;
-            buf_size_sub = 1024 * 10;
-        }
-        else {
-            LV_LOG_WARN("Unhandled intermediate layer type");
-            return;
-        }
-
-
-        const char * name = lv_obj_get_user_data(obj);
-        //        printf("Create layer for: %s\n", name ? name : "?");
-
-
-        bool full_cover_global = false;
-        if(_lv_area_is_in(&draw_area, &obj->coords, 0)) {
-            lv_cover_check_info_t info;
-            info.res = LV_COVER_RES_COVER;
-            info.area = &draw_area;
-            lv_event_send(obj, LV_EVENT_COVER_CHECK, &info);
-            if(info.res == LV_COVER_RES_COVER) full_cover_global = true;
-        }
-
-        uint32_t px_size = full_cover_global ? sizeof(lv_color_t) : LV_IMG_PX_SIZE_ALPHA_BYTE;
-
-        lv_area_t draw_area_sub;
-
-        buf_size_full = lv_area_get_size(&draw_area);
-        if(buf_size_sub > buf_size_full) buf_size_sub = buf_size_full;
-
-        int32_t row_cnt = buf_size_sub / lv_area_get_width(&draw_area);
-
-        draw_area_sub = draw_area;
-        draw_area_sub.y2 = draw_area_sub.y1 + row_cnt - 1;
-        if(draw_area_sub.y2 > draw_area.y2) draw_area_sub.y2 = draw_area.y2;
-        lv_draw_ctx_t * new_draw_ctx = lv_mem_alloc(disp_refr->driver->draw_ctx_size);
-        LV_ASSERT_MALLOC(new_draw_ctx);
-        if(new_draw_ctx == NULL) {
-            LV_LOG_WARN("Out of memory");
-            return;
-        }
-
-        uint8_t * layer_buf = lv_mem_alloc(buf_size_sub * px_size);
-        LV_ASSERT_MALLOC(layer_buf);
-        if(layer_buf == NULL) {
-            LV_LOG_WARN("Out of memory");
-            return;
-        }
-
-        //      printf("buf_size: %d (%s)\n", buf_size_sub, inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE ? "simple" : "transf");
-
-        /*Set-up a new draw_ctx*/
-        bool old_scr_transp = disp_refr->driver->screen_transp;
-        disp_refr->driver->draw_ctx_init(disp_refr->driver, new_draw_ctx);
-        new_draw_ctx->clip_area = &draw_area_sub;
-        new_draw_ctx->buf_area = &draw_area_sub;
-        new_draw_ctx->buf = (void *)layer_buf;
-
-        lv_draw_img_dsc_t draw_dsc;
-        lv_draw_img_dsc_init(&draw_dsc);
-        draw_dsc.opa = lv_obj_get_style_opa(obj, 0);
-        draw_dsc.angle = lv_obj_get_style_transform_angle(obj, 0);
-        draw_dsc.zoom = lv_obj_get_style_transform_zoom(obj, 0);
-        draw_dsc.antialias = 1;//disp_refr->driver->antialiasing;
-
-        lv_img_dsc_t img;
-        img.data = layer_buf;
-        img.header.always_zero = 0;
-        img.header.w = lv_area_get_width(&draw_area);
-        while(draw_area_sub.y1 <= draw_area.y2) {
-            bool full_cover = false;
-            if(_lv_area_is_in(&draw_area_sub, &obj->coords, 0)) {
-                lv_cover_check_info_t info;
-                info.res = LV_COVER_RES_COVER;
-                info.area = &draw_area_sub;
-                lv_event_send(obj, LV_EVENT_COVER_CHECK, &info);
-                if(info.res == LV_COVER_RES_COVER) full_cover = true;
-            }
-
-            disp_refr->driver->screen_transp = full_cover ? 0 : 1;
-            img.header.cf = full_cover ? LV_IMG_CF_TRUE_COLOR : LV_IMG_CF_TRUE_COLOR_ALPHA;
-            draw_dsc.pivot.x = obj->coords.x1 - draw_area_sub.x1;
-            draw_dsc.pivot.y = obj->coords.y1 - draw_area_sub.y1;
-            draw_dsc.recolor = lv_color_make(lv_rand(0, 0xFF), lv_rand(0, 0xFF), lv_rand(0, 0xFF));
-            //            draw_dsc.recolor_opa = LV_OPA_50;LV_IMG_PX_SIZE_ALPHA_BYTE
-
-            if(!full_cover) lv_memset_00(layer_buf, buf_size_sub * px_size);
-            refr_obj_core(new_draw_ctx, obj);
-
-            lv_img_cache_invalidate_src(&img);
-
-            img.header.h = lv_area_get_height(&draw_area_sub);
-            const char * name = lv_obj_get_user_data(obj);
-            //            printf("Blend: %s\n", name ? name : "?");
-
-            disp_refr->driver->screen_transp = old_scr_transp;
-            lv_draw_img(draw_ctx, &draw_dsc, &draw_area_sub, &img);
-
-            draw_area_sub.y1 += row_cnt;
-            draw_area_sub.y2 += row_cnt;
-            if(draw_area_sub.y2 > draw_area.y2) draw_area_sub.y2 = draw_area.y2;
-        }
-
-        volatile lv_mem_monitor_t m;
-        lv_mem_monitor(&m);
-        printf("USED: %dk\n", (LV_MEM_SIZE - m.free_size) / 1024);
-
-        disp_refr->driver->draw_ctx_deinit(disp_refr->driver, new_draw_ctx);
-        lv_mem_free(layer_buf);
-        lv_mem_free(new_draw_ctx);
-        disp_refr->driver->screen_transp = old_scr_transp;
-        //        disp_refr->driver->set_px_cb = old_set_px_cb;
-    }
-}
-
-
-
-void refr_obj_core(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
+void lv_obj_redraw(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
 {
     const lv_area_t * clip_area_ori = draw_ctx->clip_area;
     lv_area_t clip_coords_for_obj;
@@ -297,13 +141,6 @@ void refr_obj_core(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
      *With overflow visible drawing should happen to apply the masks which might affect children */
     bool should_draw = com_clip_res || lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     if(should_draw) {
-        const char * name = lv_obj_get_user_data(obj);
-        if(name) {
-            static uint32_t cnt = 0;
-            //            printf("%d. Refresh: %s\n", cnt, name);
-            cnt++;
-        }
-
         draw_ctx->clip_area = &clip_coords_for_obj;
 
         lv_event_send(obj, LV_EVENT_DRAW_MAIN_BEGIN, draw_ctx);
@@ -357,6 +194,7 @@ void refr_obj_core(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
 
     draw_ctx->clip_area = clip_area_ori;
 }
+
 
 /**
  * Invalidate an area on display to redraw it
@@ -670,8 +508,6 @@ static void refr_invalid_areas(void)
 
     if(disp_refr->inv_p == 0) return;
 
-    printf("---------------------------\n");
-
     /*Find the last area which will be drawn*/
     int32_t i;
     int32_t last_i = 0;
@@ -952,6 +788,147 @@ static void refr_obj_and_children(lv_draw_ctx_t * draw_ctx, lv_obj_t * top_obj)
         parent = lv_obj_get_parent(parent);
     }
 }
+
+void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
+{
+    /*Do not refresh hidden objects*/
+    if(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) return;
+    lv_intermediate_layer_type_t inlayer = _lv_obj_is_intermediate_layer(obj);
+    if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_NONE) {
+        lv_obj_redraw(draw_ctx, obj);
+    }
+    else {
+        lv_area_t draw_area;
+        const lv_area_t * clip_area_ori = draw_ctx->clip_area;
+        uint32_t buf_size_full;
+        uint32_t buf_size_sub;
+        lv_coord_t ext_draw_size = _lv_obj_get_ext_draw_size(obj);
+        lv_area_t obj_coords_ext;
+        lv_obj_get_coords(obj, &obj_coords_ext);
+        lv_area_increase(&obj_coords_ext, ext_draw_size, ext_draw_size);
+
+        if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_TRANSFORM) {
+            lv_area_t clip_coords_for_obj;
+            lv_area_t tranf_coords = obj_coords_ext;
+            lv_obj_get_transformed_area(obj, &tranf_coords, false, false);
+            if(!_lv_area_intersect(&clip_coords_for_obj, clip_area_ori, &tranf_coords)) {
+                return;
+            }
+
+            lv_area_t inverse_clip_coords_for_obj = clip_coords_for_obj;
+            lv_obj_get_transformed_area(obj, &inverse_clip_coords_for_obj, false, true);
+            if(!_lv_area_intersect(&inverse_clip_coords_for_obj, &inverse_clip_coords_for_obj, &obj_coords_ext)) {
+                return;
+            }
+
+            draw_area = inverse_clip_coords_for_obj;
+            buf_size_sub = lv_area_get_size(&draw_area);
+        }
+        else if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE) {
+            lv_area_t clip_coords_for_obj;
+            if(!_lv_area_intersect(&clip_coords_for_obj, clip_area_ori, &obj_coords_ext)) {
+                return;
+            }
+            draw_area = clip_coords_for_obj;
+            buf_size_sub = 1024 * 100;
+        }
+        else {
+            LV_LOG_WARN("Unhandled intermediate layer type");
+            return;
+        }
+
+        bool full_cover_global = false;
+        if(_lv_area_is_in(&draw_area, &obj->coords, 0)) {
+            lv_cover_check_info_t info;
+            info.res = LV_COVER_RES_COVER;
+            info.area = &draw_area;
+            lv_event_send(obj, LV_EVENT_COVER_CHECK, &info);
+            if(info.res == LV_COVER_RES_COVER) full_cover_global = true;
+        }
+
+        uint32_t px_size = full_cover_global ? sizeof(lv_color_t) : LV_IMG_PX_SIZE_ALPHA_BYTE;
+
+        lv_area_t draw_area_sub;
+
+        buf_size_full = lv_area_get_size(&draw_area);
+        if(buf_size_sub > buf_size_full) buf_size_sub = buf_size_full;
+
+        int32_t row_cnt = buf_size_sub / lv_area_get_width(&draw_area);
+
+        draw_area_sub = draw_area;
+        draw_area_sub.y2 = draw_area_sub.y1 + row_cnt - 1;
+        if(draw_area_sub.y2 > draw_area.y2) draw_area_sub.y2 = draw_area.y2;
+        lv_draw_ctx_t * new_draw_ctx = lv_mem_alloc(disp_refr->driver->draw_ctx_size);
+        LV_ASSERT_MALLOC(new_draw_ctx);
+        if(new_draw_ctx == NULL) {
+            LV_LOG_WARN("Out of memory");
+            return;
+        }
+
+        uint8_t * layer_buf = lv_mem_alloc(buf_size_sub * px_size);
+        LV_ASSERT_MALLOC(layer_buf);
+        if(layer_buf == NULL) {
+            LV_LOG_WARN("Out of memory");
+            return;
+        }
+
+        /*Set-up a new draw_ctx*/
+        bool old_scr_transp = disp_refr->driver->screen_transp;
+        disp_refr->driver->draw_ctx_init(disp_refr->driver, new_draw_ctx);
+        new_draw_ctx->clip_area = &draw_area_sub;
+        new_draw_ctx->buf_area = &draw_area_sub;
+        new_draw_ctx->buf = (void *)layer_buf;
+
+        lv_draw_img_dsc_t draw_dsc;
+        lv_draw_img_dsc_init(&draw_dsc);
+        draw_dsc.opa = lv_obj_get_style_opa(obj, 0);
+        draw_dsc.angle = lv_obj_get_style_transform_angle(obj, 0);
+        draw_dsc.zoom = lv_obj_get_style_transform_zoom(obj, 0);
+        draw_dsc.antialias = disp_refr->driver->antialiasing;
+
+        lv_img_dsc_t img;
+        img.data = layer_buf;
+        img.header.always_zero = 0;
+        img.header.w = lv_area_get_width(&draw_area);
+        while(draw_area_sub.y1 <= draw_area.y2) {
+            bool full_cover = false;
+            if(_lv_area_is_in(&draw_area_sub, &obj->coords, 0)) {
+                lv_cover_check_info_t info;
+                info.res = LV_COVER_RES_COVER;
+                info.area = &draw_area_sub;
+                lv_event_send(obj, LV_EVENT_COVER_CHECK, &info);
+                if(info.res == LV_COVER_RES_COVER) full_cover = true;
+            }
+
+            disp_refr->driver->screen_transp = full_cover ? 0 : 1;
+            img.header.cf = full_cover ? LV_IMG_CF_TRUE_COLOR : LV_IMG_CF_TRUE_COLOR_ALPHA;
+            draw_dsc.pivot.x = obj->coords.x1 - draw_area_sub.x1;
+            draw_dsc.pivot.y = obj->coords.y1 - draw_area_sub.y1;
+
+            if(!full_cover) lv_memset_00(layer_buf, buf_size_sub * px_size);
+            lv_obj_redraw(new_draw_ctx, obj);
+
+            lv_img_cache_invalidate_src(&img);
+
+            img.header.h = lv_area_get_height(&draw_area_sub);
+
+            disp_refr->driver->screen_transp = old_scr_transp;
+            lv_draw_img(draw_ctx, &draw_dsc, &draw_area_sub, &img);
+
+            draw_area_sub.y1 += row_cnt;
+            draw_area_sub.y2 += row_cnt;
+            if(draw_area_sub.y2 > draw_area.y2) draw_area_sub.y2 = draw_area.y2;
+        }
+
+        disp_refr->driver->draw_ctx_deinit(disp_refr->driver, new_draw_ctx);
+        lv_mem_free(layer_buf);
+        lv_mem_free(new_draw_ctx);
+        disp_refr->driver->screen_transp = old_scr_transp;
+    }
+}
+
+
+
 
 static uint32_t get_max_row(lv_disp_t * disp, lv_coord_t area_w, lv_coord_t area_h)
 {

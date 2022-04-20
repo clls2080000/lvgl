@@ -139,7 +139,7 @@ lv_res_t lv_snapshot_take_to_buf(lv_obj_t * obj, lv_img_cf_t cf, lv_img_dsc_t * 
     lv_disp_t * refr_ori = _lv_refr_get_disp_refreshing();
     _lv_refr_set_disp_refreshing(&fake_disp);
 
-    refr_obj(draw_ctx, obj);
+    lv_obj_redraw(draw_ctx, obj);
 
     _lv_refr_set_disp_refreshing(refr_ori);
     obj_disp->driver->draw_ctx_deinit(fake_disp.driver, draw_ctx);
