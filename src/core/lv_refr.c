@@ -851,6 +851,11 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             if(info.res == LV_COVER_RES_COVER) full_cover_global = true;
         }
 
+        if(LV_COLOR_SCREEN_TRANSP == 0 && !full_cover_global) {
+            LV_LOG_WARN("Rendering this widget needs LV_COLOR_SCREEN_TRANSP 1");
+            return;
+        }
+
         uint32_t px_size = full_cover_global ? sizeof(lv_color_t) : LV_IMG_PX_SIZE_ALPHA_BYTE;
 
         lv_area_t draw_area_sub;
