@@ -103,8 +103,6 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_c
         lv_coord_t y_last = blend_area.y2;
         blend_area.y2 = blend_area.y1 + buf_h - 1;
 
-        bool transform = draw_dsc->angle != 0 || draw_dsc->zoom != LV_IMG_ZOOM_NONE ? true : false;
-
         lv_draw_mask_res_t mask_res_def = (cf != LV_IMG_CF_TRUE_COLOR || draw_dsc->angle ||
                                            draw_dsc->zoom != LV_IMG_ZOOM_NONE) ?
                                           LV_DRAW_MASK_RES_CHANGED : LV_DRAW_MASK_RES_FULL_COVER;
@@ -134,7 +132,7 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_c
                     rgb_buf[i] = lv_color_mix_premult(premult_v, rgb_buf[i], recolor_opa);
                 }
             }
-
+#if LV_DRAW_COMPLEX
             /*Apply the masks if any*/
             if(mask_any) {
                 lv_coord_t y;
@@ -153,6 +151,7 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_c
                     mask_buf_tmp += blend_w;
                 }
             }
+#endif
 
             /*Blend*/
             lv_draw_sw_blend(draw_ctx, &blend_dsc);
@@ -176,6 +175,9 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_c
 static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coord_t src_w, lv_coord_t src_h,
                        lv_coord_t src_stride, const lv_draw_img_dsc_t * draw_dsc, lv_img_cf_t cf, lv_color_t * cbuf, lv_opa_t * abuf)
 {
+    LV_UNUSED(draw_dsc);
+    LV_UNUSED(src_h);
+    LV_UNUSED(src_w);
 
     const uint8_t * src_tmp8 = (const uint8_t *)src_buf;
     lv_coord_t y;
@@ -201,7 +203,7 @@ static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coo
         if(cf == LV_IMG_CF_TRUE_COLOR_CHROMA_KEYED) {
             uint32_t i;
             lv_color_t chk = LV_COLOR_CHROMA_KEY;
-#if LV_COLOR_DEPTH == 8
+#if LV_COLOR_DEPTH == 8 || LV_COLOR_DEPTH == 1
             uint8_t * cbuf_uint = (uint8_t *)cbuf;
             uint8_t chk_v = chk.full;
 #elif LV_COLOR_DEPTH == 16
@@ -227,8 +229,8 @@ static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coo
         for(y = 0; y < dest_h; y++) {
             for(x = 0; x < dest_w; x++) {
                 abuf[x] = src_tmp8[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
-#if LV_COLOR_DEPTH == 8
-                cbuf[x] = *src_tmp8;
+#if LV_COLOR_DEPTH == 8 || LV_COLOR_DEPTH == 1
+                cbuf[x].full = *src_tmp8;
 #elif LV_COLOR_DEPTH == 16
                 cbuf[x].full = *src_tmp8 + ((*(src_tmp8 + 1)) << 8);
 #elif LV_COLOR_DEPTH == 32

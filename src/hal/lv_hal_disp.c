@@ -693,7 +693,7 @@ static void set_px_true_color_alpha(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_
     lv_color_t bg_color;
     lv_color_t res_color;
     lv_opa_t bg_opa = buf_px[LV_IMG_PX_SIZE_ALPHA_BYTE - 1];
-#if LV_COLOR_DEPTH == 8
+#if LV_COLOR_DEPTH == 8 || LV_COLOR_DEPTH == 1
     bg_color.full = buf_px[0];
     lv_color_mix_with_alpha(bg_color, bg_opa, color, opa, &res_color, &buf_px[2]);
     if(buf_px[1] <= LV_OPA_MIN) return;

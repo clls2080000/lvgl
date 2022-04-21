@@ -454,7 +454,6 @@ static void lv_img_event(const lv_obj_class_t * class_p, lv_event_t * e)
             lv_coord_t w = lv_obj_get_width(obj);
             lv_coord_t h = lv_obj_get_height(obj);
             _lv_img_buf_get_transformed_area(&a, w, h, img->angle, img->zoom, &img->pivot);
-            lv_coord_t pad_ori = *s;
             *s = LV_MAX(*s, -a.x1);
             *s = LV_MAX(*s, -a.y1);
             *s = LV_MAX(*s, a.x2 - w);
