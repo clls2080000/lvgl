@@ -26,7 +26,8 @@
 /*********************
  *      DEFINES
  *********************/
-#define INTERMEDIATE_LAYER_SIMPLE_BUF_SIZE  1024 * 10   /*Px count*/
+#define SIMPLE_LAYER_BUF_SIZE  (16 * 1024)   /*Px count*/
+#define SIMPLE_LAYER_FALLBACK_BUF_SIZE  LV_MAX(lv_area_get_width(&draw_area), 512)   /*Px count*/
 
 /**********************
  *      TYPEDEFS
@@ -818,12 +819,11 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
     else {
         lv_area_t draw_area;
         const lv_area_t * clip_area_ori = draw_ctx->clip_area;
-        uint32_t buf_size_full;
-        uint32_t buf_size_sub;
         lv_coord_t ext_draw_size = _lv_obj_get_ext_draw_size(obj);
         lv_area_t obj_coords_ext;
         lv_obj_get_coords(obj, &obj_coords_ext);
         lv_area_increase(&obj_coords_ext, ext_draw_size, ext_draw_size);
+        uint32_t buf_size_sub;
 
         if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_TRANSFORM) {
             lv_area_t clip_coords_for_obj;
@@ -848,7 +848,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
                 return;
             }
             draw_area = clip_coords_for_obj;
-            buf_size_sub = INTERMEDIATE_LAYER_SIMPLE_BUF_SIZE;
+            buf_size_sub = SIMPLE_LAYER_BUF_SIZE;
         }
         else {
             LV_LOG_WARN("Unhandled intermediate layer type");
@@ -873,25 +873,35 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
 
         lv_area_t draw_area_sub;
 
-        buf_size_full = lv_area_get_size(&draw_area);
+        uint32_t buf_size_full = lv_area_get_size(&draw_area);
         if(buf_size_sub > buf_size_full) buf_size_sub = buf_size_full;
 
-        int32_t row_cnt = buf_size_sub / lv_area_get_width(&draw_area);
+        uint8_t * layer_buf = lv_mem_alloc(buf_size_sub * px_size);
+        /*Try again with a smaller buf size*/
+        if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE) {
+            if(layer_buf == NULL) {
+                LV_LOG_WARN("Cannot allocate %d bytes for layer buffer. Allocating %d bytes instead. (Reduced performance)",
+                            buf_size_sub * px_size, SIMPLE_LAYER_FALLBACK_BUF_SIZE * px_size);
+                buf_size_sub = SIMPLE_LAYER_FALLBACK_BUF_SIZE;
+                if(buf_size_sub > buf_size_full) buf_size_sub = buf_size_full;
+                layer_buf = lv_mem_alloc(buf_size_sub * px_size);
+            }
+        }
+        if(layer_buf == NULL) {
+            LV_LOG_ERROR("Out of memory: couldn't allocate %d bytes for layer buffer.", buf_size_sub * px_size);
+            LV_ASSERT_MALLOC(layer_buf);
+            return;
+        }
 
+        int32_t row_cnt = buf_size_sub / lv_area_get_width(&draw_area);
         draw_area_sub = draw_area;
         draw_area_sub.y2 = draw_area_sub.y1 + row_cnt - 1;
         if(draw_area_sub.y2 > draw_area.y2) draw_area_sub.y2 = draw_area.y2;
         lv_draw_ctx_t * new_draw_ctx = lv_mem_alloc(disp_refr->driver->draw_ctx_size);
         LV_ASSERT_MALLOC(new_draw_ctx);
         if(new_draw_ctx == NULL) {
-            LV_LOG_WARN("Out of memory");
-            return;
-        }
-
-        uint8_t * layer_buf = lv_mem_alloc(buf_size_sub * px_size);
-        LV_ASSERT_MALLOC(layer_buf);
-        if(layer_buf == NULL) {
-            LV_LOG_WARN("Out of memory");
+            LV_LOG_ERROR("Out of memory: couldn't allocate new draw context.");
+            lv_mem_free(layer_buf);
             return;
         }
 
