@@ -623,6 +623,18 @@ static void refr_area_part(lv_draw_ctx_t * draw_ctx)
         while(draw_buf->flushing) {
             if(disp_refr->driver->wait_cb) disp_refr->driver->wait_cb(disp_refr->driver);
         }
+
+        /*If the screen is transparent initialize it when the flushing is ready*/
+#if LV_COLOR_SCREEN_TRANSP
+        if(disp_refr->driver->screen_transp) {
+            if(disp_refr->driver->clear_cb) {
+                disp_refr->driver->clear_cb(disp_refr->driver, disp_refr->driver->draw_buf->buf_act, disp_refr->driver->draw_buf->size);
+            }
+            else {
+                lv_memset_00(disp_refr->driver->draw_buf->buf_act, disp_refr->driver->draw_buf->size * LV_IMG_PX_SIZE_ALPHA_BYTE);
+            }
+        }
+#endif
     }
 
     lv_obj_t * top_act_scr = NULL;
@@ -912,8 +924,8 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
 
             disp_refr->driver->screen_transp = full_cover ? 0 : 1;
             img.header.cf = full_cover ? LV_IMG_CF_TRUE_COLOR : LV_IMG_CF_TRUE_COLOR_ALPHA;
-            draw_dsc.pivot.x = obj->coords.x1 - draw_area_sub.x1;
-            draw_dsc.pivot.y = obj->coords.y1 - draw_area_sub.y1;
+            draw_dsc.pivot.x = obj->coords.x1 + lv_obj_get_style_transform_pivot_x(obj, 0) - draw_area_sub.x1;
+            draw_dsc.pivot.y = obj->coords.y1 + lv_obj_get_style_transform_pivot_y(obj, 0) - draw_area_sub.y1;
 
             if(!full_cover) lv_memset_00(layer_buf, buf_size_sub * px_size);
             lv_obj_redraw(new_draw_ctx, obj);
@@ -1172,6 +1184,18 @@ static void draw_buf_flush(lv_disp_t * disp)
         while(draw_buf->flushing) {
             if(disp_refr->driver->wait_cb) disp_refr->driver->wait_cb(disp_refr->driver);
         }
+
+        /*If the screen is transparent initialize it when the flushing is ready*/
+#if LV_COLOR_SCREEN_TRANSP
+        if(disp_refr->driver->screen_transp) {
+            if(disp_refr->driver->clear_cb) {
+                disp_refr->driver->clear_cb(disp_refr->driver, disp_refr->driver->draw_buf->buf_act, disp_refr->driver->draw_buf->size);
+            }
+            else {
+                lv_memset_00(disp_refr->driver->draw_buf->buf_act, disp_refr->driver->draw_buf->size * LV_IMG_PX_SIZE_ALPHA_BYTE);
+            }
+        }
+#endif
     }
 
     draw_buf->flushing = 1;

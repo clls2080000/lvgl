@@ -502,18 +502,6 @@ lv_coord_t lv_disp_get_dpi(const lv_disp_t * disp)
  */
 LV_ATTRIBUTE_FLUSH_READY void lv_disp_flush_ready(lv_disp_drv_t * disp_drv)
 {
-    /*If the screen is transparent initialize it when the flushing is ready*/
-#if LV_COLOR_SCREEN_TRANSP
-    if(disp_drv->screen_transp) {
-        if(disp_drv->clear_cb) {
-            disp_drv->clear_cb(disp_drv, disp_drv->draw_buf->buf_act, disp_drv->draw_buf->size);
-        }
-        else {
-            lv_memset_00(disp_drv->draw_buf->buf_act, disp_drv->draw_buf->size * sizeof(lv_color32_t));
-        }
-    }
-#endif
-
     disp_drv->draw_buf->flushing = 0;
     disp_drv->draw_buf->flushing_last = 0;
 }

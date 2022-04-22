@@ -1150,8 +1150,8 @@ static void layout_update_core(lv_obj_t * obj)
 static void transform_point(const lv_obj_t * obj, lv_point_t * p, bool inv)
 {
     lv_point_t pivot;
-    pivot.x = obj->coords.x1;
-    pivot.y = obj->coords.y1;
+    pivot.x = obj->coords.x1 + lv_obj_get_style_transform_pivot_x(obj, 0);
+    pivot.y = obj->coords.y1 + lv_obj_get_style_transform_pivot_y(obj, 0);
     int16_t angle = lv_obj_get_style_transform_angle(obj, 0);
     int16_t zoom = lv_obj_get_style_transform_zoom(obj, 0);
 
