@@ -26,6 +26,7 @@
 /*********************
  *      DEFINES
  *********************/
+#define INTERMEDIATE_LAYER_SIMPLE_BUF_SIZE  1024 * 10   /*Px count*/
 
 /**********************
  *      TYPEDEFS
@@ -847,7 +848,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
                 return;
             }
             draw_area = clip_coords_for_obj;
-            buf_size_sub = 1024 * 100;
+            buf_size_sub = INTERMEDIATE_LAYER_SIMPLE_BUF_SIZE;
         }
         else {
             LV_LOG_WARN("Unhandled intermediate layer type");
