@@ -300,6 +300,33 @@
     #endif
 #endif /*LV_DRAW_COMPLEX*/
 
+/**
+ * "Simple layers" are used when a widget has `style_opa < 255` to buffer the widget into a layer
+ * and blend it as an image with the given opacity.
+ * The widget can be buffered in smaller chunks to avoid using large buffers.
+ * `draw_area` is an `lv_area_t`variable for the area to draw and
+ * it can be used the set the buffer size adaptively.
+ *
+ * - LV_LAYER_SIMPLE_BUF_SIZE: the optimal target buffer size. LVGL will try to allocate it
+ * - LV_LAYER_SIMPLE_FALLBACK_BUF_SIZE: is used if `LV_LAYER_SIMPLE_BUF_SIZE` couldn't be allocated.
+ *
+ * Both buffer sizes are in bytes.
+ */
+#ifndef LV_LAYER_SIMPLE_BUF_SIZE
+    #ifdef CONFIG_LV_LAYER_SIMPLE_BUF_SIZE
+        #define LV_LAYER_SIMPLE_BUF_SIZE CONFIG_LV_LAYER_SIMPLE_BUF_SIZE
+    #else
+        #define LV_LAYER_SIMPLE_BUF_SIZE  		   (16 * 1024)
+    #endif
+#endif
+#ifndef LV_LAYER_SIMPLE_FALLBACK_BUF_SIZE
+    #ifdef CONFIG_LV_LAYER_SIMPLE_FALLBACK_BUF_SIZE
+        #define LV_LAYER_SIMPLE_FALLBACK_BUF_SIZE CONFIG_LV_LAYER_SIMPLE_FALLBACK_BUF_SIZE
+    #else
+        #define LV_LAYER_SIMPLE_FALLBACK_BUF_SIZE  LV_MAX(lv_area_get_width(&draw_area), 1024)
+    #endif
+#endif
+
 /*Default image cache size. Image caching keeps the images opened.
  *If only the built-in image formats are used there is no real advantage of caching. (I.e. if no new image decoder is added)
  *With complex image decoders (e.g. PNG or JPG) caching can save the continuous open/decode of images.

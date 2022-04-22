@@ -26,8 +26,6 @@
 /*********************
  *      DEFINES
  *********************/
-#define SIMPLE_LAYER_BUF_SIZE  (16 * 1024)   /*Px count*/
-#define SIMPLE_LAYER_FALLBACK_BUF_SIZE  LV_MAX(lv_area_get_width(&draw_area), 512)   /*Px count*/
 
 /**********************
  *      TYPEDEFS
@@ -845,7 +843,6 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             }
 
             draw_area = inverse_clip_coords_for_obj;
-            buf_size_sub = lv_area_get_size(&draw_area);
         }
         else if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE) {
             lv_area_t clip_coords_for_obj;
@@ -853,7 +850,6 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
                 return;
             }
             draw_area = clip_coords_for_obj;
-            buf_size_sub = SIMPLE_LAYER_BUF_SIZE;
         }
         else {
             LV_LOG_WARN("Unhandled intermediate layer type");
@@ -862,32 +858,38 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
 
         bool full_cover_global = false;
         if(_lv_area_is_in(&draw_area, &obj->coords, 0)) {
-            lv_cover_check_info_t info;
-            info.res = LV_COVER_RES_COVER;
-            info.area = &draw_area;
-            lv_event_send(obj, LV_EVENT_COVER_CHECK, &info);
-            if(info.res == LV_COVER_RES_COVER) full_cover_global = true;
+        	lv_cover_check_info_t info;
+        	info.res = LV_COVER_RES_COVER;
+        	info.area = &draw_area;
+        	lv_event_send(obj, LV_EVENT_COVER_CHECK, &info);
+        	if(info.res == LV_COVER_RES_COVER) full_cover_global = true;
         }
 
         if(LV_COLOR_SCREEN_TRANSP == 0 && !full_cover_global) {
-            LV_LOG_WARN("Rendering this widget needs LV_COLOR_SCREEN_TRANSP 1");
-            return;
+        	LV_LOG_WARN("Rendering this widget needs LV_COLOR_SCREEN_TRANSP 1");
+        	return;
         }
 
         uint32_t px_size = full_cover_global ? sizeof(lv_color_t) : LV_IMG_PX_SIZE_ALPHA_BYTE;
 
+        if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE) {
+            buf_size_sub = LV_LAYER_SIMPLE_BUF_SIZE;
+        } else {
+            buf_size_sub = lv_area_get_size(&draw_area) * px_size;
+        }
+
         lv_area_t draw_area_sub;
 
-        uint32_t buf_size_full = lv_area_get_size(&draw_area);
+        uint32_t buf_size_full = lv_area_get_size(&draw_area) * px_size;
         if(buf_size_sub > buf_size_full) buf_size_sub = buf_size_full;
 
-        uint8_t * layer_buf = lv_mem_alloc(buf_size_sub * px_size);
+        uint8_t * layer_buf = lv_mem_alloc(buf_size_sub);
         /*Try again with a smaller buf size*/
         if(inlayer == LV_INTERMEDIATE_LAYER_TYPE_SIMPLE) {
             if(layer_buf == NULL) {
                 LV_LOG_WARN("Cannot allocate %d bytes for layer buffer. Allocating %d bytes instead. (Reduced performance)",
-                            buf_size_sub * px_size, SIMPLE_LAYER_FALLBACK_BUF_SIZE * px_size);
-                buf_size_sub = SIMPLE_LAYER_FALLBACK_BUF_SIZE;
+                            buf_size_sub * px_size, LV_LAYER_SIMPLE_FALLBACK_BUF_SIZE * px_size);
+                buf_size_sub = LV_LAYER_SIMPLE_FALLBACK_BUF_SIZE;
                 if(buf_size_sub > buf_size_full) buf_size_sub = buf_size_full;
                 layer_buf = lv_mem_alloc(buf_size_sub * px_size);
             }
@@ -898,7 +900,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             return;
         }
 
-        int32_t row_cnt = buf_size_sub / lv_area_get_width(&draw_area);
+        int32_t row_cnt = buf_size_sub / (px_size * lv_area_get_width(&draw_area));
         draw_area_sub = draw_area;
         draw_area_sub.y2 = draw_area_sub.y1 + row_cnt - 1;
         if(draw_area_sub.y2 > draw_area.y2) draw_area_sub.y2 = draw_area.y2;
@@ -943,7 +945,7 @@ void refr_obj(lv_draw_ctx_t * draw_ctx, lv_obj_t * obj)
             draw_dsc.pivot.x = obj->coords.x1 + lv_obj_get_style_transform_pivot_x(obj, 0) - draw_area_sub.x1;
             draw_dsc.pivot.y = obj->coords.y1 + lv_obj_get_style_transform_pivot_y(obj, 0) - draw_area_sub.y1;
 
-            if(!full_cover) lv_memset_00(layer_buf, buf_size_sub * px_size);
+            if(!full_cover) lv_memset_00(layer_buf, buf_size_sub);
             lv_obj_redraw(new_draw_ctx, obj);
 
             lv_img_cache_invalidate_src(&img);
